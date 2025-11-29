@@ -1,0 +1,57 @@
+import React from 'react';
+import { HashRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider, useApp } from './context/AppContext';
+import { Layout } from './components/ui/Layout';
+import { LoginPage } from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { GroupDetailsPage } from './pages/GroupDetailsPage';
+
+const AppContent = () => {
+  const { currentUser } = useApp();
+
+  return (
+    <Routes>
+      <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/dashboard" />} />
+      <Route
+        path="/dashboard"
+        element={
+          currentUser ? (
+            <Layout>
+              <DashboardPage />
+            </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/group/:id"
+        element={
+          currentUser ? (
+            <Layout>
+              <GroupDetailsPage />
+            </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route path="/" element={<Navigate to={currentUser ? '/dashboard' : '/login'} />} />
+    </Routes>
+  );
+};
+
+const App = () => {
+  const isBlob = window.location.protocol === 'blob:';
+  const Router = isBlob ? MemoryRouter : HashRouter;
+
+  return (
+    <Router>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </Router>
+  );
+};
+
+export default App;
