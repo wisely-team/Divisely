@@ -23,7 +23,8 @@ const MOCK_USERS: User[] = [
 ];
 
 const MOCK_GROUPS: Group[] = [
-  { id: 'g1', name: 'Japan Trip', description: 'Vacation 2025', ownerId: 'u1', members: ['u1', 'u2', 'u3'], currency: 'USD', created_at: '2025-10-20' }
+  { id: 'g1', name: 'Japan Trip', description: 'Vacation 2025', ownerId: 'u1', members: ['u1', 'u2', 'u3'], currency: 'USD', created_at: '2025-10-20' },
+  { id: 'g2', name: 'Korea Side Trip', description: 'One week side trip to Korea', ownerId: 'u1', members: ['u1', 'u2'], currency: 'USD', created_at: '2025-10-28' }
 ];
 
 const MOCK_EXPENSES: Expense[] = [
@@ -55,6 +56,20 @@ const MOCK_EXPENSES: Expense[] = [
       { userId: 'u2', amount: 450 }, // Ben
       { userId: 'u1', amount: 450 }, // Kevin
       { userId: 'u3', amount: 600 }  // Gwen
+    ]
+  },
+  {
+    id: 'e3',
+    groupId: 'g2',
+    payerId: 'u2',
+    description: 'Match Tickets',
+    amount: 600,
+    date: '2025-10-29',
+    category: 'Entertainment',
+    splitType: 'EQUAL',
+    splits: [
+      { userId: 'u1', amount: 300 },
+      { userId: 'u2', amount: 300 }
     ]
   }
 ];
