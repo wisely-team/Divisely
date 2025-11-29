@@ -3,12 +3,19 @@ import { Link } from 'react-router-dom';
 import { Wallet, ArrowRight } from 'lucide-react';
 import { Group } from '../../types';
 import { Card } from '../UIComponents';
+import { useApp } from '@/context/AppContext';
 
 interface GroupCardProps {
   group: Group;
 }
 
 export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
+  const { currentUser, getGroupBalances } = useApp();
+  const balance = getGroupBalances(group.id).reduce((acc, b) => {
+    if (b.from === currentUser?.id) return acc - b.amount;
+    if (b.to === currentUser?.id) return acc + b.amount;
+    return acc;
+  }, 0);
   return (
     <Link to={`/group/${group.id}`} className="block group">
       <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 cursor-pointer border-gray-200 hover:border-teal-200 group-hover:-translate-y-1">
@@ -23,7 +30,14 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
         <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-teal-600 transition-colors">
           {group.name}
         </h3>
-        <p className="text-gray-500 text-sm mb-6 line-clamp-1">{group.description}</p>
+        <p className="text-gray-500 text-sm mb-1 line-clamp-1">{group.description}</p>
+        {balance > 0 ? (
+          <p className="text-green-600 text-sm mb-0">You are owed ${balance.toFixed(2)}</p>
+        ) : balance < 0 ? (
+          <p className="text-red-600 text-sm mb-0">You owe ${Math.abs(balance).toFixed(2)}</p>
+        ) : (
+          <p className="text-gray-700 text-sm mb-0">All settled up</p>
+        )}
         <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
           <div className="flex -space-x-2">
             {[...Array(group.members.length)].map((_, i) => (

@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
-import { Plus, Activity, Users } from 'lucide-react';
+import { Plus, Activity, Users, ArrowDown, ArrowUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button, Card } from '../components/UIComponents';
 import { GroupCard } from '../components/groups/GroupCard';
 import { CreateGroupModal } from '../components/groups/CreateGroupModal';
 
 export const DashboardPage = () => {
-  const { groups, expenses, currentUser, addGroup } = useApp();
+  const { groups, expenses, currentUser, addGroup, getGroupBalances } = useApp();
   const [showNewGroup, setShowNewGroup] = useState(false);
 
-  // Calculate total spent by current user
-  const totalSpent = expenses
-    .filter(e => e.payerId === currentUser?.id)
-    .reduce((sum, e) => sum + e.amount, 0);
+  // Calculate total balance of current user
+  const allgroups = groups.filter(g => g.members.includes(currentUser?.id || ''));
+  const balances = allgroups.flatMap(group => getGroupBalances(group.id));
+
+  const i_owe = balances
+    .filter(b => b.from === currentUser?.id)
+    .reduce((sum, b) => sum + b.amount, 0);
+
+  const i_am_owed = balances
+    .filter(b => b.to === currentUser?.id)
+    .reduce((sum, b) => sum + b.amount, 0);
 
   const handleCreateGroup = (name: string, description: string) => {
     addGroup(name, description);
@@ -39,11 +46,22 @@ export const DashboardPage = () => {
         <Card className="p-6 hover:shadow-lg transition-shadow duration-200">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-teal-50 rounded-xl text-teal-600">
-              <Activity className="w-6 h-6" />
+              <ArrowDown className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">Total Spent</p>
-              <h3 className="text-3xl font-bold text-gray-900">${totalSpent.toFixed(2)}</h3>
+              <p className="text-sm text-red-600 font-medium">You Owe</p>
+              <h3 className="text-3xl font-bold text-red-900">-${i_owe.toFixed(2)}</h3>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6 hover:shadow-lg transition-shadow duration-200">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-teal-50 rounded-xl text-teal-600">
+              <ArrowUp className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-green-600 font-medium">You Are Owed</p>
+              <h3 className="text-3xl font-bold text-green-900">+${i_am_owed.toFixed(2)}</h3>
             </div>
           </div>
         </Card>

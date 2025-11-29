@@ -6,7 +6,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   const variants = {
     primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500",
     secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-300",
-    danger: "bg-red-50 text-red-600 hover:bg-red-100 focus:ring-red-500",
+    danger: "bg-red-500 text-white border border-red-600 hover:bg-red-600 focus:ring-red-500",
     ghost: "bg-transparent text-gray-600 hover:bg-gray-100"
   };
   return (
