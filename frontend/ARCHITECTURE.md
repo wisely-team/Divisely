@@ -5,22 +5,22 @@
 ```
 frontend/
 ├── components/
-│   ├── ui/              # Reusable UI components (Lego parçaları)
+│   ├── ui/              # Yeniden kullanılabilir UI bileşenleri (Lego parçaları)
 │   │   ├── Button.tsx
 │   │   ├── Input.tsx
 │   │   ├── Modal.tsx
 │   │   ├── Card.tsx
 │   │   └── LoadingSpinner.tsx
-│   ├── auth/            # Authentication components
+│   ├── auth/            # Kimlik doğrulama bileşenleri
 │   │   ├── LoginForm.tsx
 │   │   ├── RegisterForm.tsx
 │   │   └── ProtectedRoute.tsx
-│   ├── expenses/        # Expense related components
+│   ├── expenses/        # Harcama ile ilgili bileşenler
 │   │   ├── ExpenseCard.tsx
 │   │   ├── AddExpenseForm.tsx
 │   │   ├── ExpenseList.tsx
 │   │   └── SplitTypeSelector.tsx
-│   ├── groups/          # Group management components
+│   ├── groups/          # Grup yönetimi bileşenleri
 │   │   ├── GroupCard.tsx
 │   │   ├── CreateGroupForm.tsx
 │   │   ├── GroupMemberList.tsx
@@ -33,29 +33,29 @@ frontend/
 │   ├── GroupDetail.tsx
 │   └── NotFound.tsx
 ├── services/            # API istekleri
-│   ├── api.ts           # Base API configuration
+│   ├── api.ts           # Temel API yapılandırması
 │   ├── authService.ts
 │   ├── groupService.ts
 │   ├── expenseService.ts
 │   └── geminiService.ts # Mevcut
-├── context/             # Global state management
+├── context/             # Global durum yönetimi
 │   ├── AuthContext.tsx
 │   ├── GroupContext.tsx
 │   └── AppContext.tsx   # Mevcut
-├── hooks/               # Custom React hooks
+├── hooks/               # Özel React hook'ları
 │   ├── useAuth.ts
 │   ├── useGroups.ts
 │   ├── useExpenses.ts
 │   └── useBalances.ts
-├── utils/               # Helper functions
+├── utils/               # Yardımcı fonksiyonlar
 │   ├── formatCurrency.ts
 │   ├── formatDate.ts
 │   ├── validateEmail.ts
 │   └── calculateSplit.ts
-├── types.ts             # TypeScript types (global)
-├── App.tsx              # Main app component
-├── index.tsx            # Entry point
-└── index.css            # Global styles
+├── types.ts             # TypeScript tipleri (global)
+├── App.tsx              # Ana uygulama bileşeni
+├── index.tsx            # Giriş noktası
+└── index.css            # Global stiller
 ```
 
 ## Görev Dağılımı (Conflict Önleme)
@@ -78,7 +78,7 @@ frontend/
 
 **Kural:** Herkes kendi klasöründe çalışır. Başka birine ait dosyada değişiklik yapacaksanız önce haber verin.
 
-## 1. Protected Routes (Korumalı Rotalar)
+## 1. Korumalı Rotalar (Protected Routes)
 
 ### components/auth/ProtectedRoute.tsx
 ```typescript
@@ -104,7 +104,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 }
 ```
 
-### App.tsx (Routing)
+### App.tsx (Yönlendirme)
 ```typescript
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -145,7 +145,7 @@ function App() {
 }
 ```
 
-## 2. Authentication Context & Service
+## 2. Kimlik Doğrulama Context & Servisi
 
 ### context/AuthContext.tsx
 ```typescript
@@ -269,7 +269,7 @@ export const authService = {
 };
 ```
 
-### services/api.ts (Base Configuration)
+### services/api.ts (Temel Yapılandırma)
 ```typescript
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -345,7 +345,7 @@ class ApiClient {
 export default new ApiClient(API_BASE_URL);
 ```
 
-## 3. Dashboard & Balances (FR-15, FR-16)
+## 3. Gösterge Paneli & Bakiyeler (FR-15, FR-16)
 
 ### pages/Dashboard.tsx
 ```typescript
@@ -394,7 +394,7 @@ export default function Dashboard() {
 }
 ```
 
-### pages/GroupDetail.tsx (FR-15 - Kim Kime Borçlu?)
+### pages/GroupDetail.tsx (FR-15 - Kim Kime Ne Kadar Borçlu?)
 ```typescript
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -499,7 +499,7 @@ export default function DebtCard({ debt, onSettle }: DebtCardProps) {
 }
 ```
 
-## 4. Types (types.ts)
+## 4. Tipler (types.ts)
 
 ```typescript
 export interface User {
@@ -544,7 +544,7 @@ export interface SimplifiedDebt {
 }
 ```
 
-## 5. Utility Functions
+## 5. Yardımcı Fonksiyonlar
 
 ### utils/formatCurrency.ts
 ```typescript
@@ -577,13 +577,13 @@ export function validateEmail(email: string): boolean {
 }
 ```
 
-## 6. Environment Variables (.env.local)
+## 6. Ortam Değişkenleri (.env.local)
 
 ```env
 VITE_API_URL=http://localhost:8080/api
 ```
 
-## Development Workflow
+## Geliştirme İş Akışı
 
 ### 1. Başlamadan Önce
 ```bash
@@ -611,31 +611,31 @@ git push origin feature/expense-form
 - Başkasının dosyasını değiştirmeden önce haber verin
 - Sık sık `git pull` yapın
 
-## Best Practices
+## En İyi Uygulamalar
 
-1. **Component Naming**: PascalCase (örn: `ExpenseCard.tsx`)
-2. **Function Naming**: camelCase (örn: `formatCurrency`)
-3. **Constant Naming**: UPPER_SNAKE_CASE (örn: `API_BASE_URL`)
-4. **Props Interface**: ComponentName + Props (örn: `DebtCardProps`)
-5. **Always use TypeScript types** - `any` kullanmayın
-6. **Error Handling**: Her API çağrısında try-catch kullanın
-7. **Loading States**: API çağrıları sırasında loading gösterin
-8. **User Feedback**: Success/Error mesajları gösterin
+1. **Bileşen İsimlendirme**: PascalCase (örn: `ExpenseCard.tsx`)
+2. **Fonksiyon İsimlendirme**: camelCase (örn: `formatCurrency`)
+3. **Sabit İsimlendirme**: UPPER_SNAKE_CASE (örn: `API_BASE_URL`)
+4. **Props Interface**: BileşenAdı + Props (örn: `DebtCardProps`)
+5. **Her zaman TypeScript tiplerini kullanın** - `any` kullanmayın
+6. **Hata Yönetimi**: Her API çağrısında try-catch kullanın
+7. **Yükleme Durumları**: API çağrıları sırasında loading gösterin
+8. **Kullanıcı Geri Bildirimi**: Başarı/Hata mesajları gösterin
 
-## Testing
+## Test
 
 ```bash
-# Run tests
+# Testleri çalıştır
 npm test
 
-# Run in watch mode
+# İzleme modunda çalıştır
 npm run test:watch
 
-# Coverage
+# Kapsam raporu
 npm run test:coverage
 ```
 
-## API Contract
+## API Sözleşmesi
 
 Tüm API endpoint'leri için `/frontend/API_CONTRACT.md` dosyasını inceleyin.
 Backend ekibi bu sözleşmeye göre API yazacak.
