@@ -182,7 +182,6 @@ Request (Equal Split):
   "amount": 1500.00,
   "payerId": "user_123",
   "splitType": "EQUAL",
-  "category": "FOOD"
 }
 
 Request (Custom Split):
@@ -192,7 +191,6 @@ Request (Custom Split):
   "amount": 1500.00,
   "payerId": "user_123",
   "splitType": "CUSTOM",
-  "category": "FOOD",
   "splits": [
     { "userId": "user_123", "amount": 450.00 },
     { "userId": "user_456", "amount": 600.00 },
@@ -211,7 +209,6 @@ Response (201 Created):
     "payerId": "user_123",
     "payerName": "Ali Veli",
     "splitType": "CUSTOM",
-    "category": "FOOD",
     "splits": [
       {
         "userId": "user_123",
@@ -247,7 +244,6 @@ Response (200 OK):
       "payerId": "user_123",
       "payerName": "Ali Veli",
       "splitType": "CUSTOM",
-      "category": "FOOD",
       "createdAt": "2024-01-15T10:30:00Z"
     }
   ]
@@ -404,8 +400,7 @@ const response = await fetch('http://localhost:8080/api/expenses', {
     description: 'Akşam Yemeği',
     amount: 1500.00,
     payerId: 'user_123',
-    splitType: 'EQUAL',
-    category: 'FOOD'
+    splitType: 'EQUAL'
   })
 });
 

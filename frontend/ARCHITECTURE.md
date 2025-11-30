@@ -430,7 +430,7 @@ export default function GroupDetail() {
       <section>
         <h2>Who Owes Whom?</h2>
         {balances.length === 0 ? (
-          <p>All settled up! 🎉</p>
+          <p>All settled up! 🞉</p>
         ) : (
           <div className="debts-list">
             {balances.map((debt, index) => (
@@ -526,7 +526,6 @@ export interface Expense {
   payerId: string;
   payerName: string;
   splitType: 'EQUAL' | 'CUSTOM' | 'PERCENTAGE';
-  category?: string;
   createdAt: string;
 }
 

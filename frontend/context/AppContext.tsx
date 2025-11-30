@@ -35,7 +35,6 @@ const MOCK_EXPENSES: Expense[] = [
     description: 'Flights',
     amount: 3000,
     date: '2025-10-21',
-    category: 'Transport',
     splitType: 'EQUAL',
     splits: [
       { userId: 'u1', amount: 1000 },
@@ -50,7 +49,6 @@ const MOCK_EXPENSES: Expense[] = [
     description: 'Hotel Rooms',
     amount: 1500,
     date: '2025-10-22',
-    category: 'Accommodation',
     splitType: 'CUSTOM', // Scenario 6: Gwen edited this
     splits: [
       { userId: 'u2', amount: 450 }, // Ben
@@ -65,7 +63,6 @@ const MOCK_EXPENSES: Expense[] = [
     description: 'Match Tickets',
     amount: 600,
     date: '2025-10-29',
-    category: 'Entertainment',
     splitType: 'EQUAL',
     splits: [
       { userId: 'u1', amount: 300 },
@@ -134,7 +131,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenses(expenses.filter(e => e.id !== id));
   };
 
-  // Requirement FR-15: System calculates simplified balances
+  // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {
     const groupExpenses = expenses.filter(e => e.groupId === groupId);
     const balances: { [key: string]: number } = {};

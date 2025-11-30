@@ -6,7 +6,6 @@ import { Button, Card } from '../components/UIComponents';
 import { ExpenseList } from '../components/expenses/ExpenseList';
 import { InteractiveDebtGraph } from '../components/expenses/InteractiveDebtGraph';
 import { BalanceList } from '../components/expenses/BalanceList';
-import { CategoryPieChart } from '../components/expenses/CategoryPieChart';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
@@ -35,14 +34,6 @@ export const GroupDetailsPage = () => {
   if (!group) return <div>Group not found</div>;
 
   const groupUsers = users.filter(u => group.members.includes(u.id));
-
-  // Charts Data
-  const chartData = groupExpenses.reduce((acc, curr) => {
-    const existing = acc.find(item => item.name === curr.category);
-    if (existing) existing.value += curr.amount;
-    else acc.push({ name: curr.category, value: curr.amount });
-    return acc;
-  }, [] as { name: string; value: number }[]);
 
   const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
     addExpense(expense);
@@ -136,12 +127,6 @@ export const GroupDetailsPage = () => {
               <BalanceList balances={balances} users={users} />
             </Card>
 
-            {chartData.length > 0 && (
-              <Card className="p-6 flex flex-col shadow-sm border-gray-200">
-                <h2 className="font-bold text-gray-800 mb-4">Spending by Category</h2>
-                <CategoryPieChart data={chartData} />
-              </Card>
-            )}
           </div>
         </div>
       )}

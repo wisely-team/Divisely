@@ -33,7 +33,6 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [expDesc, setExpDesc] = useState('');
   const [expPayer, setExpPayer] = useState(currentUserId);
   const [expSplitType, setExpSplitType] = useState<'EQUAL' | 'CUSTOM'>('EQUAL');
-  const [expCategory, setExpCategory] = useState<Expense['category']>('Other');
   const [isAllSelected, setIsAllSelected] = useState(true);
   const [expParticipants, setExpParticipants] = useState<ParticipantState[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -45,7 +44,6 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       setExpAmount('');
       setExpDesc('');
       setExpDate(new Date().toISOString().split('T')[0]);
-      setExpCategory('Other');
       setExpSplitType('EQUAL');
       setScanError(null);
 
@@ -150,7 +148,6 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       description: expDesc,
       amount: total,
       date: expDate,
-      category: expCategory,
       splitType: expSplitType,
       splits
     });

@@ -29,7 +29,6 @@ export const analyzeGroupFinances = async (
         amount: e.amount,
         payer: users.find(u => u.id === e.payerId)?.name,
         date: e.date,
-        category: e.category
       }))
     };
 

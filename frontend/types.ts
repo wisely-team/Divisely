@@ -27,7 +27,6 @@ export interface Expense {
   description: string;
   amount: number;
   date: string;
-  category: 'Food' | 'Transport' | 'Accommodation' | 'Entertainment' | 'Other';
   splits: Split[];
   splitType: 'EQUAL' | 'CUSTOM';
 }

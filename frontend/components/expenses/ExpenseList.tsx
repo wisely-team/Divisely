@@ -51,9 +51,6 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDel
                     <span className="font-medium text-gray-900">{payerUser?.name}</span> paid{' '}
                     <span className="font-medium text-gray-900">${expense.amount.toFixed(2)}</span>
                   </p>
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mt-2 block">
-                    {expense.category}
-                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-6">
