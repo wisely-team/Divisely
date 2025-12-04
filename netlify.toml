@@ -1,0 +1,17 @@
+[build]
+  # Directory to change to before starting build
+  base = "frontend"
+  # Build command
+  command = "npm run build"
+  # Directory that contains the deploy-ready HTML files
+  publish = "dist"
+
+# Redirects for Single Page Application (React Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Environment variables (optional - can also set in Netlify dashboard)
+[build.environment]
+  NODE_VERSION = "20"
