@@ -1,27 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Github } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { LoginForm } from '../components/auth/LoginForm';
+import { Wallet, Github, Eye } from 'lucide-react';
+import { Input, Button } from '../components/UIComponents';
 
-export const LoginPage = () => {
-  const { login } = useApp();
+export const SignUpPage = () => {
   const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleSubmit = (email: string) => {
-    login(email);
-    navigate('/dashboard');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Backend integration will be added later
+    navigate('/login');
   };
 
   return (
     <div className="min-h-screen flex w-full bg-white">
       {/* Left Side - Decorative */}
       <div className="hidden lg:flex w-1/2 bg-[#3f6e69] relative overflow-hidden items-center justify-center">
-        {/* Abstract Overlay/Pattern */}
         <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-teal-900/90 to-teal-800/50"></div>
 
-        {/* Main Image */}
         <img
           src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop"
           alt="Workspace"
@@ -35,9 +35,9 @@ export const LoginPage = () => {
             </div>
             <span className="text-3xl font-bold tracking-tight">Divisely</span>
           </div>
-          <h2 className="text-4xl font-bold mb-4">Split expenses, share moments.</h2>
+          <h2 className="text-4xl font-bold mb-4">Create and share effortlessly.</h2>
           <p className="text-teal-100 text-lg leading-relaxed">
-            Track balances, settle debts, and manage shared costs effortlessly with your friends and family.
+            Start splitting expenses with friends and keep every balance transparent from day one.
           </p>
         </div>
       </div>
@@ -52,19 +52,58 @@ export const LoginPage = () => {
                 <span className="text-2xl font-bold">Divisely</span>
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Welcome Back!</h1>
-            <p className="mt-2 text-gray-500">Enter your credentials to access your account.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Create your account</h1>
+            <p className="mt-2 text-gray-500">Join Divisely and start tracking shared expenses.</p>
           </div>
 
-          <LoginForm onSubmit={handleSubmit} />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <Input
+                label="Display Name"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="Ali Veli"
+                className="h-11 bg-black border-gray-800 text-white placeholder-gray-500"
+              />
+              <Input
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="h-11 bg-black border-gray-800 text-white placeholder-gray-500"
+              />
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">Password</label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2.5 bg-black border border-gray-800 text-white rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-colors placeholder-gray-500"
+                    placeholder="Choose a strong password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                  <Eye className="w-5 h-5 text-gray-500 absolute right-3 top-3 cursor-pointer" />
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-11 bg-teal-400 hover:bg-teal-500 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all"
+            >
+              Create Account
+            </Button>
+          </form>
 
           <div className="text-center text-sm">
-            <span className="text-gray-500">Don't have an account? </span>
+            <span className="text-gray-500">Already have an account? </span>
             <button
               className="font-semibold text-teal-600 hover:text-teal-500"
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate('/login')}
             >
-              Sign up
+              Sign in
             </button>
           </div>
 
@@ -103,12 +142,6 @@ export const LoginPage = () => {
               <Github className="w-5 h-5" />
               GitHub
             </button>
-          </div>
-
-          {/* Helper for demo */}
-          <div className="text-center text-xs text-gray-400 mt-8">
-            <p>Try logging in with:</p>
-            <p>kevin@divisely.com</p>
           </div>
         </div>
       </div>

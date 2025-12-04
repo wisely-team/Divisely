@@ -3,6 +3,7 @@ import { HashRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/ui/Layout';
 import { LoginPage } from './pages/LoginPage';
+import { SignUpPage } from './pages/SignUpPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { GroupDetailsPage } from './pages/GroupDetailsPage';
 
@@ -12,6 +13,7 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to="/dashboard" />} />
       <Route
         path="/dashboard"
         element={
