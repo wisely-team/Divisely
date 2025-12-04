@@ -78,7 +78,11 @@ export const DashboardPage = () => {
         </Card>
       </div>
 
-      <h2 className="text-lg font-bold text-gray-900 mb-4">Your Groups</h2>
+      <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">My Groups</h1>
+          <p className="text-gray-500 mt-1">List of groups you are a member of</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {groups.map(group => (
           <GroupCard key={group.id} group={group} />

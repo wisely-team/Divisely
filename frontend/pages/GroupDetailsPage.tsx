@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, Sparkles, DollarSign } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Button, Card } from '../components/UIComponents';
 import { ExpenseList } from '../components/expenses/ExpenseList';
@@ -20,6 +21,7 @@ export const GroupDetailsPage = () => {
 
   const group = groups.find(g => g.id === id);
   const groupExpenses = expenses.filter(e => e.groupId === id);
+  groupExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const balances = id ? getGroupBalances(id) : [];
 
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'manage'>('expenses');
@@ -34,6 +36,27 @@ export const GroupDetailsPage = () => {
   if (!group) return <div>Group not found</div>;
 
   const groupUsers = users.filter(u => group.members.includes(u.id));
+
+  const monthlySpending = React.useMemo(() => {
+    const totals = new Map<string, { label: string; total: number }>();
+    const formatter = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+
+    groupExpenses.forEach(expense => {
+      const expenseDate = new Date(expense.date);
+      if (Number.isNaN(expenseDate.getTime())) return;
+
+      const key = `${expenseDate.getUTCFullYear()}-${String(expenseDate.getUTCMonth() + 1).padStart(2, '0')}`;
+      const label = formatter.format(expenseDate);
+      const existing = totals.get(key);
+
+      if (existing) existing.total += expense.amount;
+      else totals.set(key, { label, total: expense.amount });
+    });
+
+    return Array.from(totals.entries())
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+  }, [groupExpenses]);
 
   const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
     addExpense(expense);
@@ -125,6 +148,25 @@ export const GroupDetailsPage = () => {
             <Card className="p-6 shadow-sm border-gray-200">
               <h2 className="font-bold text-gray-800 mb-6">Who owes whom?</h2>
               <BalanceList balances={balances} users={users} />
+            </Card>
+
+            <Card className="p-6 shadow-sm border-gray-200">
+              <h2 className="font-bold text-gray-800 mb-6">Spending by Month</h2>
+              {monthlySpending.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlySpending}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} height={50} angle={-15} textAnchor="end" />
+                      <YAxis tickFormatter={value => `$${value}`} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={value => `$${Number(value).toFixed(2)}`} cursor={{ fill: 'rgba(20, 184, 166, 0.08)' }} />
+                      <Bar dataKey="total" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">No spending recorded yet.</div>
+              )}
             </Card>
 
           </div>

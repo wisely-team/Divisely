@@ -20,11 +20,12 @@ const MOCK_USERS: User[] = [
   { id: 'u1', name: 'Kevin', email: 'kevin@divisely.com', avatar: 'https://picsum.photos/id/1012/100/100' },
   { id: 'u2', name: 'Ben', email: 'ben@divisely.com', avatar: 'https://picsum.photos/id/1005/100/100' },
   { id: 'u3', name: 'Gwen', email: 'gwen@divisely.com', avatar: 'https://picsum.photos/id/1027/100/100' },
+  { id: 'u4', name: 'Alice', email: 'alice@divisely.com', avatar: 'https://picsum.photos/id/1011/100/100' }
 ];
 
 const MOCK_GROUPS: Group[] = [
   { id: 'g1', name: 'Japan Trip', description: 'Vacation 2025', ownerId: 'u1', members: ['u1', 'u2', 'u3'], currency: 'USD', created_at: '2025-10-20' },
-  { id: 'g2', name: 'Korea Side Trip', description: 'One week side trip to Korea', ownerId: 'u1', members: ['u1', 'u2'], currency: 'USD', created_at: '2025-10-28' }
+  { id: 'g2', name: 'Korea Side Trip', description: 'One week side trip to Korea', ownerId: 'u1', members: ['u1', 'u4'], currency: 'USD', created_at: '2025-10-28' }
 ];
 
 const MOCK_EXPENSES: Expense[] = [
@@ -58,15 +59,253 @@ const MOCK_EXPENSES: Expense[] = [
   },
   {
     id: 'e3',
-    groupId: 'g2',
+    groupId: 'g1',
+    payerId: 'u3',
+    description: 'Meals',
+    amount: 900,
+    date: '2025-10-26',
+    splitType: 'EQUAL',
+    splits: [
+      { userId: 'u2', amount: 300 }, // Ben
+      { userId: 'u1', amount: 300 }, // Kevin
+      { userId: 'u3', amount: 300 }  // Gwen
+    ]
+  },
+  {
+    id: 'e4',
+    groupId: 'g1',
     payerId: 'u2',
+    description: 'City Tour',
+    amount: 600,
+    date: '2025-11-05',
+    splitType: 'CUSTOM', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 175 }, // Ben
+      { userId: 'u1', amount: 175 }, // Kevin
+      { userId: 'u3', amount: 250 }  // Gwen
+    ]
+  },
+  {
+    id: 'e5',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'Souvenirs',
+    amount: 120,
+    date: '2025-11-10',
+    splitType: 'CUSTOM', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 45 }, // Ben
+      { userId: 'u1', amount: 45 }, // Kevin
+      { userId: 'u3', amount: 30 }  // Gwen
+    ]
+  },
+  {
+    id: 'e6',
+    groupId: 'g1',
+    payerId: 'u3',
+    description: 'Local Transport',
+    amount: 150,
+    date: '2025-11-18',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 50 }, // Ben
+      { userId: 'u1', amount: 50 }, // Kevin
+      { userId: 'u3', amount: 50 }  // Gwen
+    ]
+  },
+  {
+    id: 'e7',
+    groupId: 'g1',
+    payerId: 'u2',
+    description: 'Karaoke Night',
+    amount: 200,
+    date: '2025-11-25',
+    splitType: 'CUSTOM', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 50 }, // Ben
+      { userId: 'u1', amount: 50 }, // Kevin
+      { userId: 'u3', amount: 100 }  // Gwen
+    ]
+  },
+  {
+    id: 'e8',
+    groupId: 'g1',
+    payerId: 'u3',
+    description: 'Museum Visit',
+    amount: 90,
+    date: '2025-12-01',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 30 }, // Ben
+      { userId: 'u1', amount: 30 }, // Kevin
+      { userId: 'u3', amount: 30 }  // Gwen
+    ]
+  },
+  {
+    id: 'e9',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'Zipline Adventure',
+    amount: 400,
+    date: '2025-12-11',
+    splitType: 'CUSTOM', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 100 }, // Ben
+      { userId: 'u1', amount: 100 }, // Kevin
+      { userId: 'u3', amount: 200 }  // Gwen
+    ]
+  },
+  {
+    id: 'e10',
+    groupId: 'g1',
+    payerId: 'u2',
+    description: 'Theme Park',
+    amount: 600,
+    date: '2025-12-18',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 200 }, // Ben
+      { userId: 'u1', amount: 200 }, // Kevin
+      { userId: 'u3', amount: 200 }  // Gwen
+    ]
+  },
+  {
+    id: 'e11',
+    groupId: 'g1',
+    payerId: 'u3',
+    description: 'Xmas Gifts',
+    amount: 1500,
+    date: '2025-12-22',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 500 }, // Ben
+      { userId: 'u1', amount: 500 }, // Kevin
+      { userId: 'u3', amount: 500 }  // Gwen
+    ]
+  },
+  {
+    id: 'e12',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'New Year Dinner',
+    amount: 300,
+    date: '2025-12-25',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 100 }, // Ben
+      { userId: 'u1', amount: 100 }, // Kevin
+      { userId: 'u3', amount: 100 }  // Gwen
+    ]
+  },
+  {
+    id: 'e13',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'Ski Equipment Rental',
+    amount: 600,
+    date: '2025-12-28',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 200 }, // Ben
+      { userId: 'u1', amount: 200 }, // Kevin
+      { userId: 'u3', amount: 200 }  // Gwen
+    ]
+  },
+  {
+    id: 'e14',
+    groupId: 'g1',
+    payerId: 'u2',
+    description: 'Taxi Rides',
+    amount: 90,
+    date: '2026-01-02',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 30 }, // Ben
+      { userId: 'u1', amount: 30 }, // Kevin
+      { userId: 'u3', amount: 30 }  // Gwen
+    ]
+  },
+  {
+    id: 'e15',
+    groupId: 'g1',
+    payerId: 'u2',
+    description: 'Plane Tickets Home',
+    amount: 1500,
+    date: '2026-01-14',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 500 }, // Ben
+      { userId: 'u1', amount: 500 }, // Kevin
+      { userId: 'u3', amount: 500 }  // Gwen
+    ]
+  },
+  {
+    id: 'e16',
+    groupId: 'g1',
+    payerId: 'u3',
+    description: 'Airport Meals',
+    amount: 90,
+    date: '2026-02-01',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 30 }, // Ben
+      { userId: 'u1', amount: 30 }, // Kevin
+      { userId: 'u3', amount: 30 }  // Gwen
+    ]
+  },
+  {
+    id: 'e17',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'Taxi Rides',
+    amount: 130,
+    date: '2026-02-02',
+    splitType: 'CUSTOM', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 45 }, // Ben
+      { userId: 'u1', amount: 25 }, // Kevin
+      { userId: 'u3', amount: 60 }  // Gwen
+    ]
+  },
+  {
+    id: 'e18',
+    groupId: 'g1',
+    payerId: 'u1',
+    description: 'Travel Insurance',
+    amount: 600,
+    date: '2026-02-17',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 200 }, // Ben
+      { userId: 'u1', amount: 200 }, // Kevin
+      { userId: 'u3', amount: 200 }  // Gwen
+    ]
+  },
+  {
+    id: 'e19',
+    groupId: 'g1',
+    payerId: 'u3',
     description: 'Match Tickets',
+    amount: 600,
+    date: '2026-03-01',
+    splitType: 'EQUAL', // Scenario 6: Gwen edited this
+    splits: [
+      { userId: 'u2', amount: 200 }, // Ben
+      { userId: 'u1', amount: 200 }, // Kevin
+      { userId: 'u3', amount: 200 }  // Gwen
+    ]
+  },
+  {
+    id: 'e20',
+    groupId: 'g2',
+    payerId: 'u4',
+    description: 'Hotel Stay',
     amount: 600,
     date: '2025-10-29',
     splitType: 'EQUAL',
     splits: [
       { userId: 'u1', amount: 300 },
-      { userId: 'u2', amount: 300 }
+      { userId: 'u4', amount: 300 }
     ]
   }
 ];
