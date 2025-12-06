@@ -148,13 +148,11 @@ Response (200 OK):
         "userId": "user_123",
         "displayName": "Ali Veli",
         "email": "ali@example.com",
-        "balance": 450.00
       },
       {
         "userId": "user_456",
         "displayName": "Ayşe Yılmaz",
         "email": "ayse@example.com",
-        "balance": -200.00
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"

@@ -78,4 +78,97 @@ async function createGroup(req, res) {
     }
 }
 
-module.exports = { createGroup };
+async function getUserGroups(req, res) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(401).json({
+                success: false,
+                error: "unauthorized"
+            });
+        }
+
+        const groups = await Group.find({ members: userId })
+            .populate("members", "displayName email")
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        const response = groups.map(group => ({
+            groupId: group._id.toString(),
+            name: group.name,
+            description: group.description,
+            memberCount: Array.isArray(group.members) ? group.members.length : 0,
+            totalExpenses: 0, // TODO: Replace with real expense sum when expense model exists
+            yourBalance: 0,   // TODO: Replace with real balance calculation per user
+            lastActivity: (group.updatedAt || group.createdAt)?.toISOString()
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: response
+        });
+    } catch (error) {
+        console.error("Get user groups error:", error);
+        return res.status(500).json({
+            success: false,
+            error: "server_error"
+        });
+    }
+}
+
+async function getGroupDetails(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        const group = await Group.findById(groupId)
+            .populate("members", "displayName email")
+            .populate("owner", "_id")
+            .lean();
+
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const isMember = Array.isArray(group.members)
+            ? group.members.some(m => m?._id?.toString() === requesterId)
+            : false;
+        const isOwner = group.owner?._id?.toString() === requesterId;
+
+        if (!isMember && !isOwner) {
+            return res.status(403).json({ success: false, error: "forbidden" });
+        }
+
+        const responseMembers = (group.members || []).map(member => ({
+            userId: member._id.toString(),
+            displayName: member.displayName,
+            email: member.email
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: group._id.toString(),
+                name: group.name,
+                description: group.description,
+                createdBy: group.owner?._id?.toString(),
+                members: responseMembers,
+                createdAt: group.createdAt?.toISOString()
+            }
+        });
+    } catch (error) {
+        console.error("Get group details error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createGroup, getUserGroups, getGroupDetails };

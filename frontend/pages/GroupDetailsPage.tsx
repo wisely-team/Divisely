@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, Sparkles, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -12,6 +12,7 @@ import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
 import { Expense } from '../types';
+import { groupService } from '../services/groupService';
 
 export const GroupDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,10 +29,52 @@ export const GroupDetailsPage = () => {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [groupMembers, setGroupMembers] = useState(users.filter(u => group?.members.includes(u.id)));
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [ownerId, setOwnerId] = useState(group?.ownerId || '');
 
-  React.useEffect(() => {
-    if (group) setGroupName(group.name);
+  useEffect(() => {
+    if (group) {
+      setGroupName(group.name);
+      if (groupMembers.length === 0) {
+        const existingMembers = users.filter(u => group.members.includes(u.id));
+        if (existingMembers.length) setGroupMembers(existingMembers);
+      }
+      setOwnerId(group.ownerId);
+    }
   }, [group]);
+
+  useEffect(() => {
+    const fetchGroupDetails = async () => {
+      if (!id) return;
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      try {
+        const details = await groupService.getGroupDetails(id, token);
+        setGroupName(details.name);
+        const normalizedMembers = (details.members || []).map(m => ({
+          id: m.userId,
+          name: m.displayName || m.email || 'Member',
+          email: m.email || '',
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.displayName || m.email || 'Member')}`
+        }));
+        setGroupMembers(normalizedMembers);
+        setOwnerId(details.createdBy || ownerId);
+        updateGroup(details.groupId, {
+          name: details.name,
+          description: details.description,
+          members: normalizedMembers.map(m => m.id),
+          ownerId: details.createdBy || ownerId
+        });
+        setDetailsError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load group details';
+        setDetailsError(message);
+      }
+    };
+
+    fetchGroupDetails();
+  }, [id]);
 
   if (!group) return <div>Group not found</div>;
 
@@ -75,7 +118,7 @@ export const GroupDetailsPage = () => {
     }
   };
 
-  const isOwner = group.ownerId === currentUser?.id;
+  const isOwner = ownerId === currentUser?.id;
 
   return (
     <>
@@ -196,12 +239,14 @@ export const GroupDetailsPage = () => {
 
           {/* Members List */}
           <MemberList
-            members={groupUsers}
-            ownerId={group.ownerId}
+            members={groupMembers}
+            ownerId={ownerId}
             currentUserId={currentUser?.id || ''}
             isOwner={isOwner}
             onRemoveMember={userId => removeMember(group.id, userId)}
           />
+
+          {detailsError && <p className="text-sm text-red-600">{detailsError}</p>}
 
           {/* Invite Link */}
           <InviteLink groupId={group.id} isOwner={isOwner} />

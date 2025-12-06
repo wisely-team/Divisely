@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, User, Group, Expense, Split } from '../types';
 import { authService } from '../services/authService';
+import { groupService } from '../services/groupService';
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  addGroup: (name: string, description: string) => void;
+  addGroup: (name: string, description: string) => Promise<Group>;
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => void;
   removeMember: (groupId: string, userId: string) => void;
@@ -314,7 +315,7 @@ const MOCK_EXPENSES: Expense[] = [
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
 
   useEffect(() => {
@@ -327,6 +328,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
   }, []);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!currentUser || !accessToken) {
+        setGroups([]);
+        return;
+      }
+
+      try {
+        const apiGroups = await groupService.getGroups(accessToken);
+        const normalized = apiGroups.map(g => {
+          const memberCount = Number.isFinite(g.memberCount) ? Math.max(0, g.memberCount) : 0;
+          const members = Array.from({ length: memberCount }, (_, idx) => `member_${idx}`);
+          return {
+            id: g.groupId,
+            name: g.name,
+            description: g.description,
+            ownerId: currentUser.id,
+            members,
+            currency: 'USD',
+            created_at: g.lastActivity || new Date().toISOString()
+          } as Group;
+        });
+        setGroups(normalized);
+      } catch (error) {
+        console.error('Failed to fetch groups', error);
+        setGroups([]);
+      }
+    };
+
+    loadGroups();
+  }, [currentUser]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -361,18 +395,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
   };
 
-  const addGroup = (name: string, description: string) => {
-    if (!currentUser) return;
-    const newGroup: Group = {
-      id: `g${Date.now()}`,
-      name,
-      description,
-      ownerId: currentUser.id,
-      members: [currentUser.id],
-      currency: 'USD',
-      created_at: new Date().toISOString()
-    };
-    setGroups([...groups, newGroup]);
+  const addGroup = async (name: string, description: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to create a group.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      const createdGroup = await groupService.createGroup(name, description, accessToken);
+      const memberIds = (createdGroup.members || []).map(m => m.userId).filter(Boolean);
+      const normalizedGroup: Group = {
+        id: createdGroup.groupId || `g${Date.now()}`,
+        name: createdGroup.name,
+        description: createdGroup.description,
+        ownerId: createdGroup.createdBy || currentUser.id,
+        members: memberIds.length ? memberIds : [currentUser.id],
+        currency: 'USD',
+        created_at: createdGroup.createdAt || new Date().toISOString()
+      };
+      setGroups(prev => [...prev, normalizedGroup]);
+      return normalizedGroup;
+    } catch (error) {
+      console.error('Failed to create group', error);
+      throw error;
+    }
   };
 
   const updateGroup = (groupId: string, data: Partial<Group>) => {
