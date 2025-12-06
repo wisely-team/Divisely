@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Wallet, Github } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LoginForm } from '../components/auth/LoginForm';
@@ -60,9 +60,9 @@ export const LoginPage = () => {
 
           <div className="text-center text-sm">
             <span className="text-gray-500">Don't have an account? </span>
-            <a href="#" className="font-semibold text-teal-600 hover:text-teal-500">
+            <Link to="/signup" className="font-semibold text-teal-600 hover:text-teal-500">
               Sign up
-            </a>
+            </Link>
           </div>
 
           <div className="relative">
@@ -100,12 +100,6 @@ export const LoginPage = () => {
               <Github className="w-5 h-5" />
               GitHub
             </button>
-          </div>
-
-          {/* Helper for demo */}
-          <div className="text-center text-xs text-gray-400 mt-8">
-            <p>Try logging in with:</p>
-            <p>kevin@divisely.com</p>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
-  const [email, setEmail] = useState('kevin@divisely.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +56,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="w-full px-3 py-2.5 bg-black border border-gray-800 text-white rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-colors placeholder-gray-500"
-              placeholder="Enter your password"
               autoComplete="current-password"
               required
             />

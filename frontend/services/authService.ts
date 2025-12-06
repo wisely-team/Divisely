@@ -10,13 +10,13 @@ export interface LoginResponse {
   };
 }
 
-const handleResponse = async (response: Response) => {
+const handleResponse = async <T>(response: Response, defaultError: string): Promise<T> => {
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.success) {
-    const errorMessage = data?.error || "login_failed";
+    const errorMessage = data?.error || defaultError;
     throw new Error(errorMessage);
   }
-  return data.data as { accessToken: string; refreshToken: string; user: { userId: string; email: string; displayName: string } };
+  return data.data as T;
 };
 
 export const authService = {
@@ -29,11 +29,29 @@ export const authService = {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await handleResponse(response);
+    const data = await handleResponse<{ accessToken: string; refreshToken: string; user: { userId: string; email: string; displayName: string } }>(
+      response,
+      "login_failed"
+    );
     return {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       user: data.user
     };
+  },
+
+  async register(email: string, password: string, displayName: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password, displayName })
+    });
+
+    return handleResponse<{ userId: string; email: string; displayName: string; createdAt: string }>(
+      response,
+      "register_failed"
+    );
   }
 };
