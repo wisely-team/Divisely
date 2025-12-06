@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, User, Group, Expense, Split } from '../types';
 import { authService } from '../services/authService';
 import { groupService } from '../services/groupService';
+import { expenseService } from '../services/expenseService';
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
@@ -10,7 +11,7 @@ interface AppContextType extends AppState {
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => void;
   removeMember: (groupId: string, userId: string) => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => void;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
 }
@@ -444,12 +445,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const addExpense = (newExpenseData: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...newExpenseData,
-      id: `e${Date.now()}`
-    };
-    setExpenses([...expenses, newExpense]);
+  const addExpense = async (newExpenseData: Omit<Expense, 'id'>) => {
+    if (!currentUser) {
+      throw new Error('Please log in to add an expense.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      const apiExpense = await expenseService.addExpense(newExpenseData, accessToken);
+      const normalizedExpense: Expense = {
+        id: apiExpense.expenseId || `e${Date.now()}`,
+        groupId: apiExpense.groupId || newExpenseData.groupId,
+        payerId: apiExpense.payerId || newExpenseData.payerId,
+        description: apiExpense.description || newExpenseData.description,
+        amount: typeof apiExpense.amount === 'number' ? apiExpense.amount : newExpenseData.amount,
+        date: newExpenseData.date || apiExpense.createdAt || new Date().toISOString(),
+        splits: (apiExpense.splits || newExpenseData.splits).map(split => ({
+          userId: split.userId,
+          amount: split.amount
+        })),
+        splitType: newExpenseData.splitType
+      };
+
+      setExpenses(prev => [...prev, normalizedExpense]);
+      return normalizedExpense;
+    } catch (error) {
+      console.error('Failed to add expense', error);
+      const message = error instanceof Error ? error.message : 'add_expense_failed';
+      throw new Error(message);
+    }
   };
 
   const deleteExpense = (id: string) => {

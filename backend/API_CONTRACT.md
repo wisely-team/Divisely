@@ -161,21 +161,11 @@ Response (200 OK):
 ```
 
 ## Expenses
-
-### 1. Create Expense (Harcama Ekle)
-```http
-POST /api/expenses
+```
+POST /api/add_expense
 Authorization: Bearer {accessToken}
 Content-Type: application/json
 
-Request (Equal Split):
-{
-  "groupId": "group_55",
-  "description": "Akşam Yemeği",
-  "amount": 1500.00,
-  "payerId": "user_123",
-  "splitType": "EQUAL",
-}
 
 Request (Custom Split):
 {
@@ -183,7 +173,7 @@ Request (Custom Split):
   "description": "Akşam Yemeği",
   "amount": 1500.00,
   "payerId": "user_123",
-  "splitType": "CUSTOM",
+"paid at": "2023-01-15T10:30:00Z"
   "splits": [
     { "userId": "user_123", "amount": 450.00 },
     { "userId": "user_456", "amount": 600.00 },
@@ -201,19 +191,16 @@ Response (201 Created):
     "amount": 1500.00,
     "payerId": "user_123",
     "payerName": "Ali Veli",
-    "splitType": "CUSTOM",
     "splits": [
       {
         "userId": "user_123",
         "displayName": "Ali Veli",
         "amount": 450.00,
-        "settled": false
       },
       {
         "userId": "user_456",
         "displayName": "Ayşe Yılmaz",
         "amount": 600.00,
-        "settled": false
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"
@@ -223,7 +210,7 @@ Response (201 Created):
 
 ### 2. Get Group Expenses
 ```http
-GET /api/groups/{groupId}/expenses
+GET /api/get_expenses/{groupId}
 Authorization: Bearer {accessToken}
 
 Response (200 OK):
@@ -236,8 +223,10 @@ Response (200 OK):
       "amount": 1500.00,
       "payerId": "user_123",
       "payerName": "Ali Veli",
-      "splitType": "CUSTOM",
-      "createdAt": "2024-01-15T10:30:00Z"
+      "my_share": 500,
+      "is_borrow": true,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "paidTime": "2024-01-15T10:30:00Z"
     }
   ]
 }

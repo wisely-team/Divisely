@@ -78,7 +78,10 @@ export const GroupDetailsPage = () => {
 
   if (!group) return <div>Group not found</div>;
 
-  const groupUsers = users.filter(u => group.members.includes(u.id));
+  const groupUsers = React.useMemo(() => {
+    if (groupMembers.length > 0) return groupMembers;
+    return users.filter(u => group.members.includes(u.id));
+  }, [groupMembers, users, group.members]);
 
   const monthlySpending = React.useMemo(() => {
     const totals = new Map<string, { label: string; total: number }>();
@@ -101,9 +104,13 @@ export const GroupDetailsPage = () => {
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [groupExpenses]);
 
-  const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
-    addExpense(expense);
-    setShowAddExpense(false);
+  const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
+    try {
+      await addExpense(expense);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add expense';
+      alert(message);
+    }
   };
 
   const handleUpdateGroup = () => {
@@ -166,7 +173,7 @@ export const GroupDetailsPage = () => {
       {/* --- EXPENSES TAB --- */}
       {activeTab === 'expenses' && (
         <div className="animate-in fade-in duration-300">
-          <ExpenseList expenses={groupExpenses} users={users} onDeleteExpense={deleteExpense} />
+          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={deleteExpense} />
         </div>
       )}
 
@@ -190,7 +197,7 @@ export const GroupDetailsPage = () => {
           <div className="space-y-6">
             <Card className="p-6 shadow-sm border-gray-200">
               <h2 className="font-bold text-gray-800 mb-6">Who owes whom?</h2>
-              <BalanceList balances={balances} users={users} />
+              <BalanceList balances={balances} users={groupUsers} />
             </Card>
 
             <Card className="p-6 shadow-sm border-gray-200">
