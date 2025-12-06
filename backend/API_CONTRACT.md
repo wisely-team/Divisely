@@ -85,7 +85,6 @@ Request:
 {
   "name": "Tatil Grubu",
   "description": "Antalya tatili için harcamalar",
-  "members": ["user_123", "user_456", "user_789"]
 }
 
 Response (201 Created):
@@ -101,12 +100,8 @@ Response (201 Created):
         "userId": "user_123",
         "displayName": "Ali Veli",
         "email": "ali@example.com"
-      },
-      {
-        "userId": "user_456",
-        "displayName": "Ayşe Yılmaz",
-        "email": "ayse@example.com"
       }
+    
     ],
     "createdAt": "2024-01-15T10:30:00Z"
   }

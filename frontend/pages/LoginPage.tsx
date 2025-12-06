@@ -8,8 +8,8 @@ export const LoginPage = () => {
   const { login } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (email: string) => {
-    login(email);
+  const handleSubmit = async (email: string, password: string) => {
+    await login(email, password);
     navigate('/dashboard');
   };
 
@@ -60,12 +60,9 @@ export const LoginPage = () => {
 
           <div className="text-center text-sm">
             <span className="text-gray-500">Don't have an account? </span>
-            <button
-              className="font-semibold text-teal-600 hover:text-teal-500"
-              onClick={() => navigate('/signup')}
-            >
+            <a href="#" className="font-semibold text-teal-600 hover:text-teal-500">
               Sign up
-            </button>
+            </a>
           </div>
 
           <div className="relative">
