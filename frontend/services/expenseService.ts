@@ -20,6 +20,18 @@ interface AddExpenseResponse {
   createdAt?: string;
 }
 
+interface GetExpenseResponse {
+  expenseId: string;
+  description: string;
+  amount: number;
+  payerId?: string;
+  payerName?: string;
+  my_share?: number;
+  is_borrow?: boolean;
+  createdAt?: string;
+  paidTime?: string;
+}
+
 const handleResponse = async <T>(response: Response, defaultError: string): Promise<T> => {
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.success) {
@@ -53,5 +65,16 @@ export const expenseService = {
     });
 
     return handleResponse<AddExpenseResponse>(response, 'add_expense_failed');
+  },
+
+  async getGroupExpenses(groupId: string, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/get_expenses/${groupId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    return handleResponse<GetExpenseResponse[]>(response, 'fetch_expenses_failed');
   }
 };

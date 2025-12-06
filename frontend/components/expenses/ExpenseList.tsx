@@ -7,9 +7,10 @@ interface ExpenseListProps {
   expenses: Expense[];
   users: User[];
   onDeleteExpense: (expenseId: string) => void;
+  currentUserId?: string;
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDeleteExpense }) => {
+export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDeleteExpense, currentUserId }) => {
   if (expenses.length === 0) {
     return (
       <Card className="overflow-hidden shadow-sm border-gray-200">
@@ -39,6 +40,19 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDel
       <div className="divide-y divide-gray-100">
         {expenses.map(expense => {
           const payerUser = users.find(u => u.id === expense.payerId);
+          const myShareFromExpense = typeof expense.myShare === 'number'
+            ? expense.myShare
+            : (currentUserId ? expense.splits.find(s => s.userId === currentUserId)?.amount ?? 0 : 0);
+          const isBorrow = typeof expense.isBorrow === 'boolean' ? expense.isBorrow : currentUserId ? currentUserId !== expense.payerId : undefined;
+          const isBorrowFlag = typeof isBorrow === 'boolean' ? isBorrow : null;
+          const displayAmount =
+            typeof isBorrow === 'boolean'
+              ? (isBorrow ? myShareFromExpense : expense.amount - myShareFromExpense)
+              : expense.amount;
+          const formattedAmount = Math.max(0, displayAmount || 0);
+          const amountColor = isBorrowFlag === null ? 'text-gray-900' : isBorrowFlag ? 'text-red-600' : 'text-green-600';
+          const amountLabel = isBorrowFlag === null ? '' : isBorrowFlag ? 'You borrow' : 'You lent';
+          const payerLabel = currentUserId && payerUser?.id === currentUserId ? 'You paid' : `${payerUser?.name || 'Someone'} paid`;
           return (
             <div key={expense.id} className="p-5 hover:bg-gray-50 transition-colors flex justify-between items-center group">
               <div className="flex items-start gap-4">
@@ -48,14 +62,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDel
                 <div>
                   <p className="font-bold text-gray-900 text-lg">{expense.description}</p>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    <span className="font-medium text-gray-900">{payerUser?.name}</span> paid{' '}
+                    <span className="font-medium text-gray-900">{payerLabel}</span>{' '}
                     <span className="font-medium text-gray-900">${expense.amount.toFixed(2)}</span>
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <p className="font-bold text-gray-900 text-lg">${expense.amount.toFixed(2)}</p>
+                  <p className={`font-bold text-lg ${amountColor}`}>${formattedAmount.toFixed(2)}</p>
+                  {amountLabel && <p className={`text-xs font-medium ${isBorrowFlag ? 'text-red-500' : 'text-green-500'}`}>{amountLabel}</p>}
                   <p className="text-xs text-gray-400 font-medium">{expense.date}</p>
                 </div>
                 <button

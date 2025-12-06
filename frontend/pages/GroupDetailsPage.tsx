@@ -16,8 +16,19 @@ import { groupService } from '../services/groupService';
 
 export const GroupDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { groups, expenses, users, currentUser, addExpense, deleteExpense, getGroupBalances, updateGroup, removeMember, deleteGroup } =
-    useApp();
+  const {
+    groups,
+    expenses,
+    users,
+    currentUser,
+    loadGroupExpenses,
+    addExpense,
+    deleteExpense,
+    getGroupBalances,
+    updateGroup,
+    removeMember,
+    deleteGroup
+  } = useApp();
   const navigate = useNavigate();
 
   const group = groups.find(g => g.id === id);
@@ -75,6 +86,11 @@ export const GroupDetailsPage = () => {
 
     fetchGroupDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    loadGroupExpenses(id);
+  }, [id, loadGroupExpenses]);
 
   if (!group) return <div>Group not found</div>;
 
@@ -173,7 +189,7 @@ export const GroupDetailsPage = () => {
       {/* --- EXPENSES TAB --- */}
       {activeTab === 'expenses' && (
         <div className="animate-in fade-in duration-300">
-          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={deleteExpense} />
+          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={deleteExpense} currentUserId={currentUser?.id} />
         </div>
       )}
 

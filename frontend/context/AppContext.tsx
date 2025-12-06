@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { AppState, User, Group, Expense, Split } from '../types';
 import { authService } from '../services/authService';
 import { groupService } from '../services/groupService';
@@ -11,6 +11,7 @@ interface AppContextType extends AppState {
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => void;
   removeMember: (groupId: string, userId: string) => void;
+  loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => void;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
@@ -445,6 +446,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const loadGroupExpenses = useCallback(async (groupId: string) => {
+    if (!currentUser) return [];
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      console.warn('Missing access token. Skipping expense fetch.');
+      return [];
+    }
+
+    try {
+      const apiExpenses = await expenseService.getGroupExpenses(groupId, accessToken);
+      const normalized = apiExpenses.map((expense, index) => {
+        const amount = typeof expense.amount === 'number' ? expense.amount : 0;
+        const requesterShare = typeof expense.my_share === 'number' ? Math.max(0, expense.my_share) : 0;
+        const splits: Split[] = requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : [];
+
+        return {
+          id: expense.expenseId || `exp_${Date.now()}_${index}`,
+          groupId,
+          payerId: expense.payerId || '',
+          description: expense.description || 'Expense',
+          amount,
+          date: expense.paidTime || expense.createdAt || new Date().toISOString(),
+          splits,
+          splitType: 'CUSTOM',
+          myShare: requesterShare,
+          isBorrow: expense.is_borrow
+        } as Expense;
+      });
+
+      setExpenses(prev => {
+        const withoutGroup = prev.filter(e => e.groupId !== groupId);
+        return [...withoutGroup, ...normalized];
+      });
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to fetch expenses', error);
+      return [];
+    }
+  }, [currentUser]);
+
   const addExpense = async (newExpenseData: Omit<Expense, 'id'>) => {
     if (!currentUser) {
       throw new Error('Please log in to add an expense.');
@@ -468,7 +511,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: split.userId,
           amount: split.amount
         })),
-        splitType: newExpenseData.splitType
+        splitType: newExpenseData.splitType,
+        myShare: newExpenseData.splits.find(s => s.userId === currentUser.id)?.amount ?? 0,
+        isBorrow: (apiExpense.payerId || newExpenseData.payerId) !== currentUser.id
       };
 
       setExpenses(prev => [...prev, normalizedExpense]);
@@ -552,7 +597,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, login, logout, addGroup, updateGroup, deleteGroup, removeMember, addExpense, deleteExpense, getGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances }}>
       {children}
     </AppContext.Provider>
   );

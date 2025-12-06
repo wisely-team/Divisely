@@ -153,7 +153,7 @@ async function getGroupExpenses(req, res) {
             const requesterSplitAmount = splitForRequester ? Number(splitForRequester.amount) : 0;
             const amount = Number(expense.amount) || 0;
             const isBorrow = payerId !== requesterId;
-            const myShare = isBorrow ? requesterSplitAmount : amount - requesterSplitAmount;
+            const myShare = requesterSplitAmount;
 
             return {
                 expenseId: expense._id.toString(),

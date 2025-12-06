@@ -29,6 +29,8 @@ export interface Expense {
   date: string;
   splits: Split[];
   splitType: 'EQUAL' | 'CUSTOM';
+  myShare?: number;
+  isBorrow?: boolean;
 }
 
 export interface Balance {
