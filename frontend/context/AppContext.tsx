@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { groupService } from '../services/groupService';
 import { expenseService } from '../services/expenseService';
 import { settlementService } from '../services/settlementService';
+import { balanceService } from '../services/balanceService';
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
@@ -18,6 +19,7 @@ interface AppContextType extends AppState {
   loadSettlements: (groupId: string) => Promise<Settlement[]>;
   deleteSettlement: (id: string) => Promise<void>;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
+  loadGroupBalances: (groupId: string) => Promise<{ from: string; to: string; amount: number }[]>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -323,6 +325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [groupBalances, setGroupBalances] = useState<{ groupId: string; debts: { from: string; to: string; amount: number }[] }[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -603,73 +606,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {
-    const groupExpenses = expenses.filter(e => e.groupId === groupId);
-    const balances: { [key: string]: number } = {};
-
-    // Initialize 0 for all members
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-        group.members.forEach(m => balances[m] = 0);
-    }
-
-    groupExpenses.forEach(expense => {
-      const payer = expense.payerId;
-      const amount = expense.amount;
-      
-      // Payer gets positive balance (they paid)
-      balances[payer] = (balances[payer] || 0) + amount;
-
-      // Subtract split amounts from beneficiaries
-      expense.splits.forEach(split => {
-        balances[split.userId] = (balances[split.userId] || 0) - split.amount;
-      });
-    });
-
-    // Simplify debts
-    const debtors: { id: string; amount: number }[] = [];
-    const creditors: { id: string; amount: number }[] = [];
-
-    Object.entries(balances).forEach(([userId, amount]) => {
-      // Fix floating point issues
-      const cleanAmount = Math.round(amount * 100) / 100;
-      if (cleanAmount < -0.01) debtors.push({ id: userId, amount: cleanAmount }); // Negative means they owe
-      if (cleanAmount > 0.01) creditors.push({ id: userId, amount: cleanAmount }); // Positive means they are owed
-    });
-
-    debtors.sort((a, b) => a.amount - b.amount);
-    creditors.sort((a, b) => b.amount - a.amount);
-
-    const result = [];
-    let i = 0; // debtor index
-    let j = 0; // creditor index
-
-    while (i < debtors.length && j < creditors.length) {
-      const debtor = debtors[i];
-      const creditor = creditors[j];
-      
-      const debt = Math.abs(debtor.amount);
-      const credit = creditor.amount;
-      
-      const amountToSettle = Math.min(debt, credit);
-      
-      result.push({
-        from: debtor.id,
-        to: creditor.id,
-        amount: Math.round(amountToSettle * 100) / 100
-      });
-
-      debtors[i].amount += amountToSettle;
-      creditors[j].amount -= amountToSettle;
-
-      if (Math.abs(debtors[i].amount) < 0.01) i++;
-      if (Math.abs(creditors[j].amount) < 0.01) j++;
-    }
-
-    return result;
+    const entry = groupBalances.find(b => b.groupId === groupId);
+    return entry ? entry.debts : [];
   };
 
+  const loadGroupBalances = useCallback(async (groupId: string) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) return [];
+    try {
+      const response = await balanceService.getGroupBalances(groupId, accessToken);
+      const simplified = (response.simplifiedDebts || []).map(d => ({
+        from: d.from.userId,
+        to: d.to.userId,
+        amount: d.amount
+      }));
+      setGroupBalances(prev => {
+        const others = prev.filter(b => b.groupId !== groupId);
+        return [...others, { groupId, debts: simplified }];
+      });
+      return simplified;
+    } catch (error) {
+      console.error('Failed to fetch balances', error);
+      return [];
+    }
+  }, []);
+
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
       {children}
     </AppContext.Provider>
   );

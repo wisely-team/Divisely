@@ -26,10 +26,11 @@ export const GroupDetailsPage = () => {
     currentUser,
     loadGroupExpenses,
     loadSettlements,
+    loadGroupBalances,
+    getGroupBalances,
     addExpense,
     deleteExpense,
     deleteSettlement,
-    getGroupBalances,
     updateGroup,
     removeMember,
     deleteGroup
@@ -98,7 +99,8 @@ export const GroupDetailsPage = () => {
     if (!id) return;
     loadGroupExpenses(id);
     loadSettlements(id);
-  }, [id, loadGroupExpenses, loadSettlements]);
+    loadGroupBalances(id);
+  }, [id, loadGroupExpenses, loadSettlements, loadGroupBalances]);
 
   if (!group) return <div>Group not found</div>;
 

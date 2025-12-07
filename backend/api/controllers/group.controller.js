@@ -183,4 +183,116 @@ async function getGroupDetails(req, res) {
     }
 }
 
-module.exports = { createGroup, getUserGroups, getGroupDetails };
+async function getGroupBalances(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        const group = await Group.findById(groupId).select("members memberBalances").lean();
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const memberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        if (!memberIds.includes(requesterId)) {
+            return res.status(403).json({ success: false, error: "forbidden" });
+        }
+
+        const balancesMap = new Map();
+        (group.memberBalances || []).forEach(entry => {
+            if (!entry?.id) return;
+            balancesMap.set(entry.id.toString(), Number(entry.balance) || 0);
+        });
+
+        memberIds.forEach(id => {
+            if (!balancesMap.has(id)) balancesMap.set(id, 0);
+        });
+
+        const creditors = [];
+        const debtors = [];
+
+        Array.from(balancesMap.entries()).forEach(([userId, balance]) => {
+            const amount = Math.round(Number(balance) * 100) / 100;
+            if (amount > 0.009) creditors.push({ userId, amount });
+            else if (amount < -0.009) debtors.push({ userId, amount });
+        });
+
+        const sortDesc = (a, b) => {
+            if (b.amount !== a.amount) return b.amount - a.amount;
+            return a.userId.localeCompare(b.userId);
+        };
+        const sortAsc = (a, b) => {
+            if (a.amount !== b.amount) return a.amount - b.amount;
+            return a.userId.localeCompare(b.userId);
+        };
+
+        creditors.sort(sortDesc);
+        debtors.sort(sortAsc);
+
+        const simplifiedDebts = [];
+        let i = 0;
+        let j = 0;
+
+        while (i < creditors.length && j < debtors.length) {
+            const creditor = creditors[i];
+            const debtor = debtors[j];
+            const payAmount = Math.min(creditor.amount, Math.abs(debtor.amount));
+            simplifiedDebts.push({
+                from: debtor.userId,
+                to: creditor.userId,
+                amount: Math.round(payAmount * 100) / 100
+            });
+
+            creditor.amount -= payAmount;
+            debtor.amount += payAmount; // debtor.amount is negative
+
+            if (creditor.amount <= 0.009) i++;
+            if (debtor.amount >= -0.009) j++;
+        }
+
+        const userDocs = await User.find({ _id: { $in: memberIds } }).select("displayName email").lean();
+        const getName = (userId) => {
+            const user = userDocs.find(u => u._id.toString() === userId);
+            return user?.displayName || user?.email || "Unknown";
+        };
+
+        const responseSimplified = simplifiedDebts.map(item => ({
+            from: { userId: item.from, displayName: getName(item.from) },
+            to: { userId: item.to, displayName: getName(item.to) },
+            amount: item.amount
+        }));
+
+        const responseMemberBalances = Array.from(balancesMap.entries())
+            .sort(([idA, balA], [idB, balB]) => {
+                if (balB !== balA) return balB - balA;
+                return idA.localeCompare(idB);
+            })
+            .map(([userId, balance]) => ({
+                userId,
+                displayName: getName(userId),
+                balance: Math.round(balance * 100) / 100
+            }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: groupId,
+                simplifiedDebts: responseSimplified,
+                memberBalances: responseMemberBalances
+            }
+        });
+    } catch (error) {
+        console.error("Get group balances error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances };
