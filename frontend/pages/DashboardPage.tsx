@@ -88,6 +88,12 @@ export const DashboardPage = () => {
           <p className="text-gray-500 mt-1">List of groups you are a member of</p>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {groups.map(group => (
+          <GroupCard key={group.id} group={group} />
+        ))}
+      </div>
+
       {groups.length === 0 ? (
         <p className="text-gray-500">No groups yet. Create one to get started.</p>
       ) : (

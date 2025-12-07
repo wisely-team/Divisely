@@ -328,6 +328,25 @@ export const GroupDetailsPage = () => {
               )}
             </Card>
 
+            <Card className="p-6 shadow-sm border-gray-200">
+              <h2 className="font-bold text-gray-800 mb-6">Spending by Month</h2>
+              {monthlySpending.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlySpending}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} height={50} angle={-15} textAnchor="end" />
+                      <YAxis tickFormatter={value => `$${value}`} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={value => `$${Number(value).toFixed(2)}`} cursor={{ fill: 'rgba(20, 184, 166, 0.08)' }} />
+                      <Bar dataKey="total" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">No spending recorded yet.</div>
+              )}
+            </Card>
+
           </div>
         </div>
       )}
