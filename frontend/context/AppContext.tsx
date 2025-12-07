@@ -13,7 +13,7 @@ interface AppContextType extends AppState {
   removeMember: (groupId: string, userId: string) => void;
   loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
-  deleteExpense: (id: string) => void;
+  deleteExpense: (id: string) => Promise<void>;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
 }
 
@@ -525,9 +525,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(expenses.filter(e => e.id !== id));
-  };
+  const deleteExpense = useCallback(async (id: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to delete an expense.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      await expenseService.deleteExpense(id, accessToken);
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (error) {
+      console.error('Failed to delete expense', error);
+      const message = error instanceof Error ? error.message : 'delete_expense_failed';
+      throw new Error(message);
+    }
+  }, [currentUser]);
 
   // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {

@@ -129,6 +129,15 @@ export const GroupDetailsPage = () => {
     }
   };
 
+  const handleDeleteExpense = async (expenseId: string) => {
+    try {
+      await deleteExpense(expenseId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete expense';
+      alert(message);
+    }
+  };
+
   const handleUpdateGroup = () => {
     updateGroup(group.id, { name: groupName });
     alert('Group updated successfully!');
@@ -189,7 +198,7 @@ export const GroupDetailsPage = () => {
       {/* --- EXPENSES TAB --- */}
       {activeTab === 'expenses' && (
         <div className="animate-in fade-in duration-300">
-          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={deleteExpense} currentUserId={currentUser?.id} />
+          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={handleDeleteExpense} currentUserId={currentUser?.id} />
         </div>
       )}
 

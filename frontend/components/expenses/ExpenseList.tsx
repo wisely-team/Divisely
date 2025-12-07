@@ -6,7 +6,7 @@ import { Card } from '../UIComponents';
 interface ExpenseListProps {
   expenses: Expense[];
   users: User[];
-  onDeleteExpense: (expenseId: string) => void;
+  onDeleteExpense: (expenseId: string) => Promise<void> | void;
   currentUserId?: string;
 }
 
@@ -45,13 +45,18 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDel
             : (currentUserId ? expense.splits.find(s => s.userId === currentUserId)?.amount ?? 0 : 0);
           const isBorrow = typeof expense.isBorrow === 'boolean' ? expense.isBorrow : currentUserId ? currentUserId !== expense.payerId : undefined;
           const isBorrowFlag = typeof isBorrow === 'boolean' ? isBorrow : null;
+          const hasShare = myShareFromExpense > 0;
           const displayAmount =
             typeof isBorrow === 'boolean'
               ? (isBorrow ? myShareFromExpense : expense.amount - myShareFromExpense)
               : expense.amount;
-          const formattedAmount = Math.max(0, displayAmount || 0);
-          const amountColor = isBorrowFlag === null ? 'text-gray-900' : isBorrowFlag ? 'text-red-600' : 'text-green-600';
-          const amountLabel = isBorrowFlag === null ? '' : isBorrowFlag ? 'You borrow' : 'You lent';
+          const formattedAmount = hasShare ? Math.max(0, displayAmount || 0) : 0;
+          const amountColor = hasShare
+            ? (isBorrowFlag === null ? 'text-gray-900' : isBorrowFlag ? 'text-red-600' : 'text-green-600')
+            : 'text-gray-400';
+          const amountLabel = hasShare
+            ? (isBorrowFlag === null ? '' : isBorrowFlag ? 'You borrow' : 'You lent')
+            : 'You are not involved';
           const payerLabel = currentUserId && payerUser?.id === currentUserId ? 'You paid' : `${payerUser?.name || 'Someone'} paid`;
           return (
             <div key={expense.id} className="p-5 hover:bg-gray-50 transition-colors flex justify-between items-center group">
@@ -70,11 +75,22 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, users, onDel
               <div className="flex items-center gap-6">
                 <div className="text-right">
                   <p className={`font-bold text-lg ${amountColor}`}>${formattedAmount.toFixed(2)}</p>
-                  {amountLabel && <p className={`text-xs font-medium ${isBorrowFlag ? 'text-red-500' : 'text-green-500'}`}>{amountLabel}</p>}
+                  {amountLabel && (
+                    <p className={`text-xs font-medium ${hasShare ? (isBorrowFlag ? 'text-red-500' : 'text-green-500') : 'text-gray-400'}`}>
+                      {amountLabel}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-400 font-medium">{expense.date}</p>
                 </div>
                 <button
-                  onClick={() => onDeleteExpense(expense.id)}
+                  onClick={async () => {
+                    try {
+                      await onDeleteExpense(expense.id);
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : 'Failed to delete expense';
+                      alert(message);
+                    }
+                  }}
                   className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-red-50 rounded-lg"
                 >
                   <Trash2 className="w-4 h-4" />

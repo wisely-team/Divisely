@@ -44,18 +44,24 @@ async function createGroup(req, res) {
         const uniqueMemberIds = Array.from(new Set([ownerId, ...validMemberIds]));
 
         const memberUsers = await User.find({ _id: { $in: uniqueMemberIds } }).select("displayName email");
+        const memberBalances = memberUsers.map(u => ({ id: u._id, balance: 0 }));
 
         const group = await Group.create({
             name,
             description,
             owner: owner._id,
-            members: memberUsers.map(u => u._id)
+            members: memberUsers.map(u => u._id),
+            memberBalances
         });
 
         const responseMembers = memberUsers.map(u => ({
             userId: u._id.toString(),
             displayName: u.displayName,
             email: u.email
+        }));
+        const responseMemberBalances = memberBalances.map(mb => ({
+            id: mb.id.toString(),
+            balance: mb.balance
         }));
 
         return res.status(201).json({
@@ -66,6 +72,7 @@ async function createGroup(req, res) {
                 description: group.description,
                 createdBy: owner._id.toString(),
                 members: responseMembers,
+                memberBalances: responseMemberBalances,
                 createdAt: group.createdAt.toISOString()
             }
         });
@@ -100,7 +107,7 @@ async function getUserGroups(req, res) {
             description: group.description,
             memberCount: Array.isArray(group.members) ? group.members.length : 0,
             totalExpenses: 0, // TODO: Replace with real expense sum when expense model exists
-            yourBalance: 0,   // TODO: Replace with real balance calculation per user
+            yourBalance: (group.memberBalances || []).find(b => b?.id?.toString() === userId)?.balance || 0,
             lastActivity: (group.updatedAt || group.createdAt)?.toISOString()
         }));
 
@@ -153,6 +160,10 @@ async function getGroupDetails(req, res) {
             displayName: member.displayName,
             email: member.email
         }));
+        const responseMemberBalances = (group.memberBalances || []).map(mb => ({
+            id: mb.id?.toString(),
+            balance: mb.balance
+        }));
 
         return res.status(200).json({
             success: true,
@@ -162,6 +173,7 @@ async function getGroupDetails(req, res) {
                 description: group.description,
                 createdBy: group.owner?._id?.toString(),
                 members: responseMembers,
+                memberBalances: responseMemberBalances,
                 createdAt: group.createdAt?.toISOString()
             }
         });

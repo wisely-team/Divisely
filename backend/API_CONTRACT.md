@@ -100,8 +100,13 @@ Response (201 Created):
         "userId": "user_123",
         "displayName": "Ali Veli",
         "email": "ali@example.com"
+      }    
+    ],
+    "memberBalances": [
+      {
+        "id": "user_123",
+        "balance": 0
       }
-    
     ],
     "createdAt": "2024-01-15T10:30:00Z"
   }
@@ -153,6 +158,16 @@ Response (200 OK):
         "userId": "user_456",
         "displayName": "Ayşe Yılmaz",
         "email": "ayse@example.com",
+      }
+    ],
+    "memberBalances": [
+      {
+        "id": "user_123",
+        "balance": 0
+      },
+      {
+        "id": "user_456",
+        "balance": 0
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"

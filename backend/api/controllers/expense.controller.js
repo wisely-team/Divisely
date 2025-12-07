@@ -26,7 +26,7 @@ async function createExpense(req, res) {
             return res.status(400).json({ success: false, error: "invalid_amount" });
         }
 
-        const group = await Group.findById(groupId).select("members owner").lean();
+        const group = await Group.findById(groupId).select("members owner memberBalances");
         if (!group) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
@@ -84,7 +84,36 @@ async function createExpense(req, res) {
                 amount: Number(s.amount)
             };
         });
-        
+
+        // Update group member balances based on splits
+        const balanceUpdates = new Map();
+        for (const split of validSplits) {
+            const splitAmount = Number(split.amount);
+            balanceUpdates.set(split.userId, (balanceUpdates.get(split.userId) || 0) - splitAmount);
+            balanceUpdates.set(payerId, (balanceUpdates.get(payerId) || 0) + splitAmount);
+        }
+
+        const currentBalances = new Map();
+        (group.memberBalances || []).forEach(entry => {
+            if (!entry?.id) {
+                return;
+            }
+            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+        });
+
+        groupMemberIds.forEach(memberId => {
+            if (!currentBalances.has(memberId)) {
+                currentBalances.set(memberId, 0);
+            }
+        });
+
+        for (const [userId, delta] of balanceUpdates.entries()) {
+            const existing = currentBalances.get(userId) || 0;
+            currentBalances.set(userId, existing + delta);
+        }
+
+        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        await group.save();
 
         return res.status(201).json({
             success: true,
@@ -175,4 +204,84 @@ async function getGroupExpenses(req, res) {
     }
 }
 
-module.exports = { createExpense, getGroupExpenses };
+async function deleteExpense(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { expenseId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!expenseId || !mongoose.Types.ObjectId.isValid(expenseId)) {
+            return res.status(400).json({ success: false, error: "invalid_expense_id" });
+        }
+
+        const expense = await Expense.findById(expenseId);
+        if (!expense) {
+            return res.status(404).json({ success: false, error: "expense_not_found" });
+        }
+
+        const groupId = expense.group?.toString();
+        if (!groupId) {
+            return res.status(400).json({ success: false, error: "expense_group_missing" });
+        }
+
+        const group = await Group.findById(groupId).select("owner members memberBalances");
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const isGroupOwner = group.owner?.toString() === requesterId;
+        const isPayer = expense.paid_by?.toString() === requesterId;
+        if (!isGroupOwner && !isPayer) {
+            return res.status(403).json({ success: false, error: "forbidden" });
+        }
+
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        if (!groupMemberIds.includes(requesterId)) {
+            return res.status(403).json({ success: false, error: "forbidden" });
+        }
+
+        const balanceUpdates = new Map();
+        (expense.debtors || []).forEach(debtor => {
+            if (!debtor?.user) {
+                return;
+            }
+            const debtorId = debtor.user.toString();
+            const amount = Number(debtor.amount) || 0;
+            balanceUpdates.set(debtorId, (balanceUpdates.get(debtorId) || 0) + amount);
+            balanceUpdates.set(expense.paid_by.toString(), (balanceUpdates.get(expense.paid_by.toString()) || 0) - amount);
+        });
+
+        const currentBalances = new Map();
+        (group.memberBalances || []).forEach(entry => {
+            if (!entry?.id) {
+                return;
+            }
+            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+        });
+
+        groupMemberIds.forEach(memberId => {
+            if (!currentBalances.has(memberId)) {
+                currentBalances.set(memberId, 0);
+            }
+        });
+
+        for (const [userId, delta] of balanceUpdates.entries()) {
+            const existing = currentBalances.get(userId) || 0;
+            currentBalances.set(userId, existing + delta);
+        }
+
+        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        await group.save();
+        await expense.deleteOne();
+
+        return res.status(200).json({ success: true, message: "Expense deleted successfully" });
+    } catch (error) {
+        console.error("Delete expense error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createExpense, getGroupExpenses, deleteExpense };

@@ -76,5 +76,16 @@ export const expenseService = {
     });
 
     return handleResponse<GetExpenseResponse[]>(response, 'fetch_expenses_failed');
+  },
+
+  async deleteExpense(expenseId: string, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/expenses/${expenseId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    return handleResponse<null>(response, 'delete_expense_failed');
   }
 };
