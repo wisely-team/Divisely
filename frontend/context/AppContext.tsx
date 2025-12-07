@@ -1,8 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { AppState, User, Group, Expense, Split } from '../types';
+import { AppState, User, Group, Expense, Split, Settlement } from '../types';
 import { authService } from '../services/authService';
 import { groupService } from '../services/groupService';
 import { expenseService } from '../services/expenseService';
+import { settlementService } from '../services/settlementService';
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
@@ -14,6 +15,8 @@ interface AppContextType extends AppState {
   loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
+  loadSettlements: (groupId: string) => Promise<Settlement[]>;
+  deleteSettlement: (id: string) => Promise<void>;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
 }
 
@@ -319,6 +322,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -433,8 +437,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteGroup = (groupId: string) => {
     setGroups(groups.filter(g => g.id !== groupId));
-    // Optionally clean up expenses
+    // Optionally clean up expenses and settlements
     setExpenses(expenses.filter(e => e.groupId !== groupId));
+    setSettlements(prev => prev.filter(s => s.groupId !== groupId));
   };
 
   const removeMember = (groupId: string, userId: string) => {
@@ -484,6 +489,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return normalized;
     } catch (error) {
       console.error('Failed to fetch expenses', error);
+      return [];
+    }
+  }, [currentUser]);
+
+  const loadSettlements = useCallback(async (groupId: string) => {
+    if (!currentUser) return [];
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      console.warn('Missing access token. Skipping settlements fetch.');
+      return [];
+    }
+
+    try {
+      const response = await settlementService.getSettlements(groupId, accessToken);
+      const normalized: Settlement[] = (response.settlements || []).map(s => ({
+        id: s.settlementId,
+        groupId: response.groupId || groupId,
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: s.amount,
+        note: s.note,
+        description: s.note,
+        settledAt: s.settledAt,
+        createdAt: s.settledAt || s.settlementId
+      }));
+
+      setSettlements(prev => {
+        const withoutGroup = prev.filter(s => s.groupId !== groupId);
+        return [...withoutGroup, ...normalized];
+      });
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to fetch settlements', error);
       return [];
     }
   }, [currentUser]);
@@ -544,6 +584,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error(message);
     }
   }, [currentUser]);
+
+  const deleteSettlement = useCallback(async (id: string) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      await settlementService.deleteSettlement(id, accessToken);
+      setSettlements(prev => prev.filter(s => s.id !== id));
+    } catch (error) {
+      console.error('Failed to delete settlement', error);
+      const message = error instanceof Error ? error.message : 'delete_settlement_failed';
+      throw new Error(message);
+    }
+  }, []);
 
   // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {
@@ -613,7 +669,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement }}>
       {children}
     </AppContext.Provider>
   );

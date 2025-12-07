@@ -13,6 +13,7 @@ import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
 import { Expense } from '../types';
+import { settlementService } from '../services/settlementService';
 import { groupService } from '../services/groupService';
 
 export const GroupDetailsPage = () => {
@@ -20,11 +21,14 @@ export const GroupDetailsPage = () => {
   const {
     groups,
     expenses,
+    settlements,
     users,
     currentUser,
     loadGroupExpenses,
+    loadSettlements,
     addExpense,
     deleteExpense,
+    deleteSettlement,
     getGroupBalances,
     updateGroup,
     removeMember,
@@ -35,6 +39,7 @@ export const GroupDetailsPage = () => {
   const group = groups.find(g => g.id === id);
   const groupExpenses = expenses.filter(e => e.groupId === id);
   groupExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const groupSettlements = (settlements || []).filter(s => s.groupId === id);
   const balances = id ? getGroupBalances(id) : [];
 
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'manage'>('expenses');
@@ -92,7 +97,8 @@ export const GroupDetailsPage = () => {
   useEffect(() => {
     if (!id) return;
     loadGroupExpenses(id);
-  }, [id, loadGroupExpenses]);
+    loadSettlements(id);
+  }, [id, loadGroupExpenses, loadSettlements]);
 
   if (!group) return <div>Group not found</div>;
 
@@ -122,6 +128,32 @@ export const GroupDetailsPage = () => {
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [groupExpenses]);
 
+  const transactions = React.useMemo(() => {
+    const expenseItems = groupExpenses.map(expense => ({
+      type: 'expense' as const,
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      date: expense.date,
+      payerId: expense.payerId,
+      splits: expense.splits,
+      myShare: expense.myShare,
+      isBorrow: expense.isBorrow
+    }));
+
+    const settlementItems = groupSettlements.map(settlement => ({
+      type: 'settlement' as const,
+      id: settlement.id,
+      description: settlement.note || 'Settlement',
+      amount: settlement.amount,
+      date: settlement.settledAt || settlement.createdAt || new Date().toISOString(),
+      fromUserId: settlement.fromUserId,
+      toUserId: settlement.toUserId
+    }));
+
+    return [...expenseItems, ...settlementItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [groupExpenses, groupSettlements]);
+
   const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
     try {
       await addExpense(expense);
@@ -140,9 +172,34 @@ export const GroupDetailsPage = () => {
     }
   };
 
-  const handleSettleUp = async (payload: { fromUserId: string; toUserId: string; amount: number }) => {
+  const handleDeleteSettlement = async (settlementId: string) => {
     try {
-      console.log('Settle up request:', payload);
+      await deleteSettlement(settlementId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete settlement';
+      alert(message);
+    }
+  };
+
+  const handleSettleUp = async (payload: { fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        throw new Error('Missing access token. Please log in again.');
+      }
+
+      await settlementService.settleUp(
+        {
+          groupId: group.id,
+          fromUserId: payload.fromUserId,
+          toUserId: payload.toUserId,
+          amount: payload.amount,
+          description: payload.description,
+          date: payload.date
+        },
+        accessToken
+      );
+
       setShowSettleUp(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to settle up';
@@ -217,7 +274,13 @@ export const GroupDetailsPage = () => {
       {/* --- EXPENSES TAB --- */}
       {activeTab === 'expenses' && (
         <div className="animate-in fade-in duration-300">
-          <ExpenseList expenses={groupExpenses} users={groupUsers} onDeleteExpense={handleDeleteExpense} currentUserId={currentUser?.id} />
+          <ExpenseList
+            transactions={transactions}
+            users={groupUsers}
+            onDeleteExpense={handleDeleteExpense}
+            onDeleteSettlement={handleDeleteSettlement}
+            currentUserId={currentUser?.id}
+          />
         </div>
       )}
 

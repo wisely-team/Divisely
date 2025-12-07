@@ -8,7 +8,7 @@ interface SettleUpModalProps {
   onClose: () => void;
   groupUsers: User[];
   currentUserId?: string;
-  onSettleUp: (payload: { fromUserId: string; toUserId: string; amount: number }) => Promise<void> | void;
+  onSettleUp: (payload: { fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => Promise<void> | void;
 }
 
 export const SettleUpModal: React.FC<SettleUpModalProps> = ({
@@ -21,6 +21,8 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   const [fromUserId, setFromUserId] = useState<string>(currentUserId || '');
   const [toUserId, setToUserId] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -28,6 +30,8 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
       setFromUserId(currentUserId || '');
       setToUserId('');
       setAmount('');
+      setDescription('');
+      setDate(new Date().toISOString().split('T')[0]);
       setIsSubmitting(false);
     }
   }, [isOpen, currentUserId]);
@@ -50,7 +54,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
 
     try {
       setIsSubmitting(true);
-      await onSettleUp({ fromUserId, toUserId, amount: amountNum });
+      await onSettleUp({ fromUserId, toUserId, amount: amountNum, description, date });
       onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to settle up. Please try again.';
@@ -123,6 +127,29 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                 className="mt-1"
                 required
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-colors"
+                  placeholder="Optional note (e.g., cash payback)"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Date</label>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  className="mt-1"
+                  required
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-3 text-sm text-gray-500 bg-white border border-gray-100 rounded-lg p-4">

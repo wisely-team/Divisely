@@ -328,7 +328,9 @@ Request:
   "fromUserId": "user_456",
   "toUserId": "user_123",
   "amount": 500.00,
-  "note": "Akşam yemeği borcu"
+  "description": "Akşam yemeği borcu",
+  "settledAt": "2024-01-15T11:00:00Z",
+  "createdAt": "2024-01-15T11:00:00Z",
 }
 
 Response (201 Created):
@@ -343,6 +345,44 @@ Response (201 Created):
     "note": "Akşam yemeği borcu",
     "settledAt": "2024-01-15T11:00:00Z"
   }
+}
+```
+
+### 3. Get Settlements
+```http
+GET /api/settlements/{groupId}
+Authorization: Bearer {accessToken}
+
+Response (201 Created):
+
+
+{
+  "success": true,
+  "data": {
+    "groupId": "group_55",
+    
+    settlements:[{
+    "settlementId": "settle_111",
+    "fromUserId": "user_456",
+    "toUserId": "user_123",
+    "amount": 500.00,
+    "note": "Akşam yemeği borcu",
+    "settledAt": "2024-01-15T11:00:00Z"
+  }
+  ]
+  }
+}
+
+```
+### 4. Delete Settlement
+```http
+DELETE /api/settlement/{settlementId}
+Authorization: Bearer {accessToken}
+
+Response (200 OK):
+{
+  "success": true,
+  "message": "Settlement deleted successfully"
 }
 ```
 
