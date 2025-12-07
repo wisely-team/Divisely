@@ -29,6 +29,8 @@ export interface Expense {
   date: string;
   splits: Split[];
   splitType: 'EQUAL' | 'CUSTOM';
+  myShare?: number;
+  isBorrow?: boolean;
 }
 
 export interface Balance {
@@ -37,10 +39,23 @@ export interface Balance {
   amount: number;
 }
 
+export interface Settlement {
+  id: string;
+  groupId: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  description?: string;
+  note?: string;
+  settledAt?: string;
+  createdAt?: string;
+}
+
 // For the UI context
 export interface AppState {
   currentUser: User | null;
   users: User[];
   groups: Group[];
   expenses: Expense[];
+  settlements?: Settlement[];
 }

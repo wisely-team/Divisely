@@ -1,5 +1,4 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
 import { User } from '../../types';
 import { Card } from '../UIComponents';
 
@@ -40,15 +39,7 @@ export const MemberList: React.FC<MemberListProps> = ({
                 </p>
               </div>
             </div>
-            {isOwner && user.id !== currentUserId && (
-              <button
-                onClick={() => onRemoveMember(user.id)}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                title="Remove Member"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+            {/* Remove member intentionally disabled */}
           </div>
         ))}
       </div>

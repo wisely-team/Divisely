@@ -1,16 +1,25 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppState, User, Group, Expense, Split } from '../types';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { AppState, User, Group, Expense, Split, Settlement } from '../types';
+import { authService } from '../services/authService';
+import { groupService } from '../services/groupService';
+import { expenseService } from '../services/expenseService';
+import { settlementService } from '../services/settlementService';
+import { balanceService } from '../services/balanceService';
 
 interface AppContextType extends AppState {
-  login: (email: string) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  addGroup: (name: string, description: string) => void;
+  addGroup: (name: string, description: string) => Promise<Group>;
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => void;
   removeMember: (groupId: string, userId: string) => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  deleteExpense: (id: string) => void;
+  loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
+  deleteExpense: (id: string) => Promise<void>;
+  loadSettlements: (groupId: string) => Promise<Settlement[]>;
+  deleteSettlement: (id: string) => Promise<void>;
   getGroupBalances: (groupId: string) => { from: string; to: string; amount: number }[];
+  loadGroupBalances: (groupId: string) => Promise<{ from: string; to: string; amount: number }[]>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -312,31 +321,117 @@ const MOCK_EXPENSES: Expense[] = [
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users] = useState<User[]>(MOCK_USERS);
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [groupBalances, setGroupBalances] = useState<{ groupId: string; debts: { from: string; to: string; amount: number }[] }[]>([]);
 
-  const login = (email: string) => {
-    // Simple mock login
-    const user = users.find(u => u.email === email);
-    if (user) setCurrentUser(user);
-    else alert("User not found (Try kevin@divisely.com)");
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!currentUser || !accessToken) {
+        setGroups([]);
+        return;
+      }
+
+      try {
+        const apiGroups = await groupService.getGroups(accessToken);
+        const normalized = apiGroups.map(g => {
+          const memberCount = Number.isFinite(g.memberCount) ? Math.max(0, g.memberCount) : 0;
+          const members = Array.from({ length: memberCount }, (_, idx) => `member_${idx}`);
+          return {
+            id: g.groupId,
+            name: g.name,
+            description: g.description,
+            ownerId: currentUser.id,
+            members,
+            currency: 'USD',
+            created_at: g.lastActivity || new Date().toISOString()
+          } as Group;
+        });
+        setGroups(normalized);
+      } catch (error) {
+        console.error('Failed to fetch groups', error);
+        setGroups([]);
+      }
+    };
+
+    loadGroups();
+  }, [currentUser]);
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await authService.login(email, password);
+      const normalizedEmail = email.toLowerCase();
+      const matchedUser = users.find(u => u.email.toLowerCase() === normalizedEmail);
+      const normalizedUser: User =
+        matchedUser || {
+          id: response.user.userId,
+          name: response.user.displayName || response.user.email.split('@')[0],
+          email: response.user.email
+        };
+
+      if (!matchedUser) {
+        setUsers(prev => [...prev, normalizedUser]);
+      }
+
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
+      setCurrentUser(normalizedUser);
+    } catch (error) {
+      console.error('Login failed', error);
+      throw error;
+    }
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+  };
 
-  const addGroup = (name: string, description: string) => {
-    if (!currentUser) return;
-    const newGroup: Group = {
-      id: `g${Date.now()}`,
-      name,
-      description,
-      ownerId: currentUser.id,
-      members: [currentUser.id],
-      currency: 'USD',
-      created_at: new Date().toISOString()
-    };
-    setGroups([...groups, newGroup]);
+  const addGroup = async (name: string, description: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to create a group.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      const createdGroup = await groupService.createGroup(name, description, accessToken);
+      const memberIds = (createdGroup.members || []).map(m => m.userId).filter(Boolean);
+      const normalizedGroup: Group = {
+        id: createdGroup.groupId || `g${Date.now()}`,
+        name: createdGroup.name,
+        description: createdGroup.description,
+        ownerId: createdGroup.createdBy || currentUser.id,
+        members: memberIds.length ? memberIds : [currentUser.id],
+        currency: 'USD',
+        created_at: createdGroup.createdAt || new Date().toISOString()
+      };
+      setGroups(prev => [...prev, normalizedGroup]);
+      return normalizedGroup;
+    } catch (error) {
+      console.error('Failed to create group', error);
+      throw error;
+    }
   };
 
   const updateGroup = (groupId: string, data: Partial<Group>) => {
@@ -345,8 +440,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteGroup = (groupId: string) => {
     setGroups(groups.filter(g => g.id !== groupId));
-    // Optionally clean up expenses
+    // Optionally clean up expenses and settlements
     setExpenses(expenses.filter(e => e.groupId !== groupId));
+    setSettlements(prev => prev.filter(s => s.groupId !== groupId));
   };
 
   const removeMember = (groupId: string, userId: string) => {
@@ -358,87 +454,185 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const addExpense = (newExpenseData: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...newExpenseData,
-      id: `e${Date.now()}`
-    };
-    setExpenses([...expenses, newExpense]);
+  const loadGroupExpenses = useCallback(async (groupId: string) => {
+    if (!currentUser) return [];
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      console.warn('Missing access token. Skipping expense fetch.');
+      return [];
+    }
+
+    try {
+      const apiExpenses = await expenseService.getGroupExpenses(groupId, accessToken);
+      const normalized = apiExpenses.map((expense, index) => {
+        const amount = typeof expense.amount === 'number' ? expense.amount : 0;
+        const requesterShare = typeof expense.my_share === 'number' ? Math.max(0, expense.my_share) : 0;
+        const splits: Split[] = requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : [];
+
+        return {
+          id: expense.expenseId || `exp_${Date.now()}_${index}`,
+          groupId,
+          payerId: expense.payerId || '',
+          description: expense.description || 'Expense',
+          amount,
+          date: expense.paidTime || expense.createdAt || new Date().toISOString(),
+          splits,
+          splitType: 'CUSTOM',
+          myShare: requesterShare,
+          isBorrow: expense.is_borrow
+        } as Expense;
+      });
+
+      setExpenses(prev => {
+        const withoutGroup = prev.filter(e => e.groupId !== groupId);
+        return [...withoutGroup, ...normalized];
+      });
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to fetch expenses', error);
+      return [];
+    }
+  }, [currentUser]);
+
+  const loadSettlements = useCallback(async (groupId: string) => {
+    if (!currentUser) return [];
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      console.warn('Missing access token. Skipping settlements fetch.');
+      return [];
+    }
+
+    try {
+      const response = await settlementService.getSettlements(groupId, accessToken);
+      const normalized: Settlement[] = (response.settlements || []).map(s => ({
+        id: s.settlementId,
+        groupId: response.groupId || groupId,
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: s.amount,
+        note: s.note,
+        description: s.note,
+        settledAt: s.settledAt,
+        createdAt: s.settledAt || s.settlementId
+      }));
+
+      setSettlements(prev => {
+        const withoutGroup = prev.filter(s => s.groupId !== groupId);
+        return [...withoutGroup, ...normalized];
+      });
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to fetch settlements', error);
+      return [];
+    }
+  }, [currentUser]);
+
+  const addExpense = async (newExpenseData: Omit<Expense, 'id'>) => {
+    if (!currentUser) {
+      throw new Error('Please log in to add an expense.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      const apiExpense = await expenseService.addExpense(newExpenseData, accessToken);
+      const normalizedExpense: Expense = {
+        id: apiExpense.expenseId || `e${Date.now()}`,
+        groupId: apiExpense.groupId || newExpenseData.groupId,
+        payerId: apiExpense.payerId || newExpenseData.payerId,
+        description: apiExpense.description || newExpenseData.description,
+        amount: typeof apiExpense.amount === 'number' ? apiExpense.amount : newExpenseData.amount,
+        date: newExpenseData.date || apiExpense.createdAt || new Date().toISOString(),
+        splits: (apiExpense.splits || newExpenseData.splits).map(split => ({
+          userId: split.userId,
+          amount: split.amount
+        })),
+        splitType: newExpenseData.splitType,
+        myShare: newExpenseData.splits.find(s => s.userId === currentUser.id)?.amount ?? 0,
+        isBorrow: (apiExpense.payerId || newExpenseData.payerId) !== currentUser.id
+      };
+
+      setExpenses(prev => [...prev, normalizedExpense]);
+      return normalizedExpense;
+    } catch (error) {
+      console.error('Failed to add expense', error);
+      const message = error instanceof Error ? error.message : 'add_expense_failed';
+      throw new Error(message);
+    }
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(expenses.filter(e => e.id !== id));
-  };
+  const deleteExpense = useCallback(async (id: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to delete an expense.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      await expenseService.deleteExpense(id, accessToken);
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (error) {
+      console.error('Failed to delete expense', error);
+      const message = error instanceof Error ? error.message : 'delete_expense_failed';
+      throw new Error(message);
+    }
+  }, [currentUser]);
+
+  const deleteSettlement = useCallback(async (id: string) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      await settlementService.deleteSettlement(id, accessToken);
+      setSettlements(prev => prev.filter(s => s.id !== id));
+    } catch (error) {
+      console.error('Failed to delete settlement', error);
+      const message = error instanceof Error ? error.message : 'delete_settlement_failed';
+      throw new Error(message);
+    }
+  }, []);
 
   // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {
-    const groupExpenses = expenses.filter(e => e.groupId === groupId);
-    const balances: { [key: string]: number } = {};
-
-    // Initialize 0 for all members
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-        group.members.forEach(m => balances[m] = 0);
-    }
-
-    groupExpenses.forEach(expense => {
-      const payer = expense.payerId;
-      const amount = expense.amount;
-      
-      // Payer gets positive balance (they paid)
-      balances[payer] = (balances[payer] || 0) + amount;
-
-      // Subtract split amounts from beneficiaries
-      expense.splits.forEach(split => {
-        balances[split.userId] = (balances[split.userId] || 0) - split.amount;
-      });
-    });
-
-    // Simplify debts
-    const debtors: { id: string; amount: number }[] = [];
-    const creditors: { id: string; amount: number }[] = [];
-
-    Object.entries(balances).forEach(([userId, amount]) => {
-      // Fix floating point issues
-      const cleanAmount = Math.round(amount * 100) / 100;
-      if (cleanAmount < -0.01) debtors.push({ id: userId, amount: cleanAmount }); // Negative means they owe
-      if (cleanAmount > 0.01) creditors.push({ id: userId, amount: cleanAmount }); // Positive means they are owed
-    });
-
-    debtors.sort((a, b) => a.amount - b.amount);
-    creditors.sort((a, b) => b.amount - a.amount);
-
-    const result = [];
-    let i = 0; // debtor index
-    let j = 0; // creditor index
-
-    while (i < debtors.length && j < creditors.length) {
-      const debtor = debtors[i];
-      const creditor = creditors[j];
-      
-      const debt = Math.abs(debtor.amount);
-      const credit = creditor.amount;
-      
-      const amountToSettle = Math.min(debt, credit);
-      
-      result.push({
-        from: debtor.id,
-        to: creditor.id,
-        amount: Math.round(amountToSettle * 100) / 100
-      });
-
-      debtors[i].amount += amountToSettle;
-      creditors[j].amount -= amountToSettle;
-
-      if (Math.abs(debtors[i].amount) < 0.01) i++;
-      if (Math.abs(creditors[j].amount) < 0.01) j++;
-    }
-
-    return result;
+    const entry = groupBalances.find(b => b.groupId === groupId);
+    return entry ? entry.debts : [];
   };
 
+  const loadGroupBalances = useCallback(async (groupId: string) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) return [];
+    try {
+      const response = await balanceService.getGroupBalances(groupId, accessToken);
+      const simplified = (response.simplifiedDebts || []).map(d => ({
+        from: d.from.userId,
+        to: d.to.userId,
+        amount: d.amount
+      }));
+      setGroupBalances(prev => {
+        const others = prev.filter(b => b.groupId !== groupId);
+        return [...others, { groupId, debts: simplified }];
+      });
+      return simplified;
+    } catch (error) {
+      console.error('Failed to fetch balances', error);
+      return [];
+    }
+  }, []);
+
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, login, logout, addGroup, updateGroup, deleteGroup, removeMember, addExpense, deleteExpense, getGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
       {children}
     </AppContext.Provider>
   );

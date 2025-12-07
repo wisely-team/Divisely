@@ -21,9 +21,14 @@ export const DashboardPage = () => {
     .filter(b => b.to === currentUser?.id)
     .reduce((sum, b) => sum + b.amount, 0);
 
-  const handleCreateGroup = (name: string, description: string) => {
-    addGroup(name, description);
-    setShowNewGroup(false);
+  const handleCreateGroup = async (name: string, description: string) => {
+    try {
+      await addGroup(name, description);
+      setShowNewGroup(false);
+    } catch (error) {
+      console.error('Create group failed', error);
+      throw error;
+    }
   };
 
   return (
@@ -88,6 +93,16 @@ export const DashboardPage = () => {
           <GroupCard key={group.id} group={group} />
         ))}
       </div>
+
+      {groups.length === 0 ? (
+        <p className="text-gray-500">No groups yet. Create one to get started.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {groups.map(group => (
+            <GroupCard key={group.id} group={group} />
+          ))}
+        </div>
+      )}
 
       <CreateGroupModal
         isOpen={showNewGroup}

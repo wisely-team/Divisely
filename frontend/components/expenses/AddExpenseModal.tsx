@@ -16,7 +16,7 @@ interface AddExpenseModalProps {
   onClose: () => void;
   groupUsers: User[];
   currentUserId: string;
-  onAddExpense: (expense: Omit<Expense, 'id'>) => void;
+  onAddExpense: (expense: Omit<Expense, 'id'>) => Promise<unknown>;
   groupId: string;
 }
 
@@ -36,6 +36,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [isAllSelected, setIsAllSelected] = useState(true);
   const [expParticipants, setExpParticipants] = useState<ParticipantState[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
+  const participantSelectionKey = expParticipants.map(p => `${p.userId}-${p.isChecked}`).join('|');
 
   // Initialize form when opening modal
   useEffect(() => {
@@ -82,34 +83,41 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     }
   }, [expParticipants]);
 
-  // Equal Split Logic with Penny Allocation
-  useEffect(() => {
-    if (!isOpen) return;
+  const recalcEqualSplit = React.useCallback(() => {
+    setExpParticipants(prev => {
+      if (expSplitType !== 'EQUAL' || !isOpen) return prev;
 
-    const total = parseFloat(expAmount) || 0;
-
-    if (expSplitType === 'EQUAL') {
-      const activeMembers = expParticipants.filter(p => p.isChecked);
+      const total = parseFloat(expAmount) || 0;
+      const activeMembers = prev.filter(p => p.isChecked);
       const count = activeMembers.length;
 
-      if (count > 0) {
-        const shares = calculateEqualSplit(total, count);
-        let shareIndex = 0;
-
-        setExpParticipants(prev =>
-          prev.map(p => {
-            if (!p.isChecked) return { ...p, shareAmount: 0 };
-            const share = shares[shareIndex++];
-            return { ...p, shareAmount: share };
-          })
-        );
-      } else {
-        setExpParticipants(prev => prev.map(p => ({ ...p, shareAmount: 0 })));
+      if (count === 0) {
+        const cleared = prev.map(p => ({ ...p, shareAmount: 0 }));
+        const changed = cleared.some((p, idx) => p !== prev[idx]);
+        return changed ? cleared : prev;
       }
-    }
-  }, [expAmount, expSplitType, expParticipants.map(p => p.isChecked).join(','), isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+      const shares = calculateEqualSplit(total, count);
+      let shareIndex = 0;
+
+      const next = prev.map(p => {
+        if (!p.isChecked) return { ...p, shareAmount: 0 };
+        const share = shares[shareIndex++];
+        if (Math.abs((p.shareAmount || 0) - share) < 0.0001) return p;
+        return { ...p, shareAmount: share };
+      });
+
+      const changed = next.some((p, idx) => p !== prev[idx]);
+      return changed ? next : prev;
+    });
+  }, [expAmount, expSplitType, isOpen]);
+
+  // Equal Split Logic with Penny Allocation
+  useEffect(() => {
+    recalcEqualSplit();
+  }, [participantSelectionKey, expAmount, expSplitType, recalcEqualSplit]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const total = parseFloat(expAmount);
     if (isNaN(total) || total <= 0) {
@@ -142,17 +150,21 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       amount: p.shareAmount
     }));
 
-    onAddExpense({
-      groupId,
-      payerId: expPayer,
-      description: expDesc,
-      amount: total,
-      date: expDate,
-      splitType: expSplitType,
-      splits
-    });
-
-    onClose();
+    try {
+      await onAddExpense({
+        groupId,
+        payerId: expPayer,
+        description: expDesc,
+        amount: total,
+        date: expDate,
+        splitType: expSplitType,
+        splits
+      });
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add expense. Please try again.';
+      alert(message);
+    }
   };
 
   const currentSplitSum = expParticipants.filter(p => p.isChecked).reduce((sum, p) => sum + (p.shareAmount || 0), 0);
@@ -170,7 +182,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
         {/* Scrollable Content */}
         <div className="overflow-y-auto bg-gray-50 flex-1">
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <form id="add-expense-form" onSubmit={handleSubmit} className="p-8 space-y-6">
         {/* Receipt Scanner */}
         <ReceiptScanner onScanComplete={handleReceiptScan} onError={handleScanError} />
 
@@ -399,15 +411,9 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             </Button>
             <Button
               type="submit"
+              form="add-expense-form"
               disabled={isCustomInvalid}
               className="bg-teal-600 hover:bg-teal-700 text-white min-w-[120px]"
-              onClick={(e) => {
-                const form = e.currentTarget.closest('form');
-                if (form) {
-                  const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                  form.dispatchEvent(submitEvent);
-                }
-              }}
             >
               Add Expense
             </Button>

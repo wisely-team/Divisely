@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Sparkles, DollarSign } from 'lucide-react';
+import { Plus, Sparkles, DollarSign, Handshake } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Button, Card } from '../components/UIComponents';
@@ -8,34 +8,106 @@ import { ExpenseList } from '../components/expenses/ExpenseList';
 import { InteractiveDebtGraph } from '../components/expenses/InteractiveDebtGraph';
 import { BalanceList } from '../components/expenses/BalanceList';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
+import { SettleUpModal } from '../components/expenses/SettleUpModal';
 import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
 import { Expense } from '../types';
+import { settlementService } from '../services/settlementService';
+import { groupService } from '../services/groupService';
 
 export const GroupDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { groups, expenses, users, currentUser, addExpense, deleteExpense, getGroupBalances, updateGroup, removeMember, deleteGroup } =
-    useApp();
+  const {
+    groups,
+    expenses,
+    settlements,
+    users,
+    currentUser,
+    loadGroupExpenses,
+    loadSettlements,
+    loadGroupBalances,
+    getGroupBalances,
+    addExpense,
+    deleteExpense,
+    deleteSettlement,
+    updateGroup,
+    removeMember,
+    deleteGroup
+  } = useApp();
   const navigate = useNavigate();
 
   const group = groups.find(g => g.id === id);
   const groupExpenses = expenses.filter(e => e.groupId === id);
   groupExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const groupSettlements = (settlements || []).filter(s => s.groupId === id);
   const balances = id ? getGroupBalances(id) : [];
 
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'manage'>('expenses');
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showSettleUp, setShowSettleUp] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [groupMembers, setGroupMembers] = useState(users.filter(u => group?.members.includes(u.id)));
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [ownerId, setOwnerId] = useState(group?.ownerId || '');
 
-  React.useEffect(() => {
-    if (group) setGroupName(group.name);
+  useEffect(() => {
+    if (group) {
+      setGroupName(group.name);
+      if (groupMembers.length === 0) {
+        const existingMembers = users.filter(u => group.members.includes(u.id));
+        if (existingMembers.length) setGroupMembers(existingMembers);
+      }
+      setOwnerId(group.ownerId);
+    }
   }, [group]);
+
+  useEffect(() => {
+    const fetchGroupDetails = async () => {
+      if (!id) return;
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      try {
+        const details = await groupService.getGroupDetails(id, token);
+        setGroupName(details.name);
+        const normalizedMembers = (details.members || []).map(m => ({
+          id: m.userId,
+          name: m.displayName || m.email || 'Member',
+          email: m.email || '',
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.displayName || m.email || 'Member')}`
+        }));
+        setGroupMembers(normalizedMembers);
+        setOwnerId(details.createdBy || ownerId);
+        updateGroup(details.groupId, {
+          name: details.name,
+          description: details.description,
+          members: normalizedMembers.map(m => m.id),
+          ownerId: details.createdBy || ownerId
+        });
+        setDetailsError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load group details';
+        setDetailsError(message);
+      }
+    };
+
+    fetchGroupDetails();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    loadGroupExpenses(id);
+    loadSettlements(id);
+    loadGroupBalances(id);
+  }, [id, loadGroupExpenses, loadSettlements, loadGroupBalances]);
 
   if (!group) return <div>Group not found</div>;
 
-  const groupUsers = users.filter(u => group.members.includes(u.id));
+  const groupUsers = React.useMemo(() => {
+    if (groupMembers.length > 0) return groupMembers;
+    return users.filter(u => group.members.includes(u.id));
+  }, [groupMembers, users, group.members]);
 
   const monthlySpending = React.useMemo(() => {
     const totals = new Map<string, { label: string; total: number }>();
@@ -58,9 +130,83 @@ export const GroupDetailsPage = () => {
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [groupExpenses]);
 
-  const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
-    addExpense(expense);
-    setShowAddExpense(false);
+  const transactions = React.useMemo(() => {
+    const expenseItems = groupExpenses.map(expense => ({
+      type: 'expense' as const,
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      date: expense.date,
+      payerId: expense.payerId,
+      splits: expense.splits,
+      myShare: expense.myShare,
+      isBorrow: expense.isBorrow
+    }));
+
+    const settlementItems = groupSettlements.map(settlement => ({
+      type: 'settlement' as const,
+      id: settlement.id,
+      description: settlement.note || 'Settlement',
+      amount: settlement.amount,
+      date: settlement.settledAt || settlement.createdAt || new Date().toISOString(),
+      fromUserId: settlement.fromUserId,
+      toUserId: settlement.toUserId
+    }));
+
+    return [...expenseItems, ...settlementItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [groupExpenses, groupSettlements]);
+
+  const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
+    try {
+      await addExpense(expense);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add expense';
+      alert(message);
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    try {
+      await deleteExpense(expenseId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete expense';
+      alert(message);
+    }
+  };
+
+  const handleDeleteSettlement = async (settlementId: string) => {
+    try {
+      await deleteSettlement(settlementId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete settlement';
+      alert(message);
+    }
+  };
+
+  const handleSettleUp = async (payload: { fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        throw new Error('Missing access token. Please log in again.');
+      }
+
+      await settlementService.settleUp(
+        {
+          groupId: group.id,
+          fromUserId: payload.fromUserId,
+          toUserId: payload.toUserId,
+          amount: payload.amount,
+          description: payload.description,
+          date: payload.date
+        },
+        accessToken
+      );
+
+      setShowSettleUp(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to settle up';
+      alert(message);
+    }
   };
 
   const handleUpdateGroup = () => {
@@ -75,7 +221,7 @@ export const GroupDetailsPage = () => {
     }
   };
 
-  const isOwner = group.ownerId === currentUser?.id;
+  const isOwner = ownerId === currentUser?.id;
 
   return (
     <>
@@ -97,6 +243,13 @@ export const GroupDetailsPage = () => {
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100 text-indigo-700 hover:shadow-sm"
           >
             <Sparkles className="w-4 h-4" /> Smart Assistant
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setShowSettleUp(true)}
+            className="flex items-center gap-2 border-teal-200 text-teal-700 hover:bg-teal-50"
+          >
+            <Handshake className="w-4 h-4" /> Settle Up
           </Button>
           <Button onClick={() => setShowAddExpense(true)} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white shadow-md">
             <Plus className="w-5 h-5" /> Add Expense
@@ -123,7 +276,13 @@ export const GroupDetailsPage = () => {
       {/* --- EXPENSES TAB --- */}
       {activeTab === 'expenses' && (
         <div className="animate-in fade-in duration-300">
-          <ExpenseList expenses={groupExpenses} users={users} onDeleteExpense={deleteExpense} />
+          <ExpenseList
+            transactions={transactions}
+            users={groupUsers}
+            onDeleteExpense={handleDeleteExpense}
+            onDeleteSettlement={handleDeleteSettlement}
+            currentUserId={currentUser?.id}
+          />
         </div>
       )}
 
@@ -147,7 +306,26 @@ export const GroupDetailsPage = () => {
           <div className="space-y-6">
             <Card className="p-6 shadow-sm border-gray-200">
               <h2 className="font-bold text-gray-800 mb-6">Who owes whom?</h2>
-              <BalanceList balances={balances} users={users} />
+              <BalanceList balances={balances} users={groupUsers} />
+            </Card>
+
+            <Card className="p-6 shadow-sm border-gray-200">
+              <h2 className="font-bold text-gray-800 mb-6">Spending by Month</h2>
+              {monthlySpending.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlySpending}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} height={50} angle={-15} textAnchor="end" />
+                      <YAxis tickFormatter={value => `$${value}`} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={value => `$${Number(value).toFixed(2)}`} cursor={{ fill: 'rgba(20, 184, 166, 0.08)' }} />
+                      <Bar dataKey="total" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">No spending recorded yet.</div>
+              )}
             </Card>
 
             <Card className="p-6 shadow-sm border-gray-200">
@@ -196,12 +374,14 @@ export const GroupDetailsPage = () => {
 
           {/* Members List */}
           <MemberList
-            members={groupUsers}
-            ownerId={group.ownerId}
+            members={groupMembers}
+            ownerId={ownerId}
             currentUserId={currentUser?.id || ''}
             isOwner={isOwner}
             onRemoveMember={userId => removeMember(group.id, userId)}
           />
+
+          {detailsError && <p className="text-sm text-red-600">{detailsError}</p>}
 
           {/* Invite Link */}
           <InviteLink groupId={group.id} isOwner={isOwner} />
@@ -232,6 +412,14 @@ export const GroupDetailsPage = () => {
         currentUserId={currentUser?.id || ''}
         onAddExpense={handleAddExpense}
         groupId={group.id}
+      />
+
+      <SettleUpModal
+        isOpen={showSettleUp}
+        onClose={() => setShowSettleUp(false)}
+        groupUsers={groupUsers}
+        currentUserId={currentUser?.id}
+        onSettleUp={handleSettleUp}
       />
 
       <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} group={group} expenses={groupExpenses} users={users} />
