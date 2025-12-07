@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Sparkles, DollarSign } from 'lucide-react';
+import { Plus, Sparkles, DollarSign, Handshake } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { Button, Card } from '../components/UIComponents';
@@ -8,6 +8,7 @@ import { ExpenseList } from '../components/expenses/ExpenseList';
 import { InteractiveDebtGraph } from '../components/expenses/InteractiveDebtGraph';
 import { BalanceList } from '../components/expenses/BalanceList';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
+import { SettleUpModal } from '../components/expenses/SettleUpModal';
 import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
@@ -39,6 +40,7 @@ export const GroupDetailsPage = () => {
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'manage'>('expenses');
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showSettleUp, setShowSettleUp] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupMembers, setGroupMembers] = useState(users.filter(u => group?.members.includes(u.id)));
   const [detailsError, setDetailsError] = useState<string | null>(null);
@@ -138,6 +140,16 @@ export const GroupDetailsPage = () => {
     }
   };
 
+  const handleSettleUp = async (payload: { fromUserId: string; toUserId: string; amount: number }) => {
+    try {
+      console.log('Settle up request:', payload);
+      setShowSettleUp(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to settle up';
+      alert(message);
+    }
+  };
+
   const handleUpdateGroup = () => {
     updateGroup(group.id, { name: groupName });
     alert('Group updated successfully!');
@@ -172,6 +184,13 @@ export const GroupDetailsPage = () => {
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100 text-indigo-700 hover:shadow-sm"
           >
             <Sparkles className="w-4 h-4" /> Smart Assistant
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setShowSettleUp(true)}
+            className="flex items-center gap-2 border-teal-200 text-teal-700 hover:bg-teal-50"
+          >
+            <Handshake className="w-4 h-4" /> Settle Up
           </Button>
           <Button onClick={() => setShowAddExpense(true)} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white shadow-md">
             <Plus className="w-5 h-5" /> Add Expense
@@ -309,6 +328,14 @@ export const GroupDetailsPage = () => {
         currentUserId={currentUser?.id || ''}
         onAddExpense={handleAddExpense}
         groupId={group.id}
+      />
+
+      <SettleUpModal
+        isOpen={showSettleUp}
+        onClose={() => setShowSettleUp(false)}
+        groupUsers={groupUsers}
+        currentUserId={currentUser?.id}
+        onSettleUp={handleSettleUp}
       />
 
       <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} group={group} expenses={groupExpenses} users={users} />
