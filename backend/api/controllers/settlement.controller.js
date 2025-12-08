@@ -36,7 +36,7 @@ async function createSettlement(req, res) {
 
         const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
         if (!memberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to create a settlement in this group" });
         }
 
         if (!memberIds.includes(fromUserId) || !memberIds.includes(toUserId)) {
@@ -121,7 +121,7 @@ async function getSettlements(req, res) {
 
         const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
         if (!memberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to view settlements in this group" });
         }
 
         const settlements = await Settlement.find({ group: groupId })
@@ -181,12 +181,12 @@ async function deleteSettlement(req, res) {
         const isGroupOwner = group.owner?.toString() === requesterId;
         const isPayer = settlement.from_user?.toString() === requesterId;
         if (!isGroupOwner && !isPayer) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to delete this settlement" });
         }
 
         const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
         if (!memberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to delete this settlement" });
         }
 
         const balanceUpdates = new Map();

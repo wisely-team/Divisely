@@ -13,7 +13,6 @@ import { AIAssistantModal } from '../components/expenses/AIAssistantModal';
 import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
 import { Expense } from '../types';
-import { settlementService } from '../services/settlementService';
 import { groupService } from '../services/groupService';
 
 export const GroupDetailsPage = () => {
@@ -31,6 +30,7 @@ export const GroupDetailsPage = () => {
     addExpense,
     deleteExpense,
     deleteSettlement,
+    settleUp,
     updateGroup,
     removeMember,
     deleteGroup
@@ -185,24 +185,15 @@ export const GroupDetailsPage = () => {
 
   const handleSettleUp = async (payload: { fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        throw new Error('Missing access token. Please log in again.');
-      }
-
-      await settlementService.settleUp(
-        {
-          groupId: group.id,
-          fromUserId: payload.fromUserId,
-          toUserId: payload.toUserId,
-          amount: payload.amount,
-          description: payload.description,
-          date: payload.date
-        },
-        accessToken
-      );
-
-      setShowSettleUp(false);
+      await settleUp({
+        groupId: group.id,
+        fromUserId: payload.fromUserId,
+        toUserId: payload.toUserId,
+        amount: payload.amount,
+        description: payload.description,
+        date: payload.date
+      });
+      await loadGroupBalances(group.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to settle up';
       alert(message);
@@ -307,25 +298,6 @@ export const GroupDetailsPage = () => {
             <Card className="p-6 shadow-sm border-gray-200">
               <h2 className="font-bold text-gray-800 mb-6">Who owes whom?</h2>
               <BalanceList balances={balances} users={groupUsers} />
-            </Card>
-
-            <Card className="p-6 shadow-sm border-gray-200">
-              <h2 className="font-bold text-gray-800 mb-6">Spending by Month</h2>
-              {monthlySpending.length > 0 ? (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlySpending}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                      <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} height={50} angle={-15} textAnchor="end" />
-                      <YAxis tickFormatter={value => `$${value}`} tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={value => `$${Number(value).toFixed(2)}`} cursor={{ fill: 'rgba(20, 184, 166, 0.08)' }} />
-                      <Bar dataKey="total" fill="#14b8a6" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="text-gray-500 text-sm">No spending recorded yet.</div>
-              )}
             </Card>
 
             <Card className="p-6 shadow-sm border-gray-200">

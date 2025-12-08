@@ -12,7 +12,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ groupId, isOwner }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`https://divisely.app/join/${inviteToken}`);
+    navigator.clipboard.writeText(`https://wisely.tr/join/${inviteToken}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -32,7 +32,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ groupId, isOwner }) => {
         <div className="flex-1 relative">
           <input
             readOnly
-            value={`https://divisely.app/join/${inviteToken}`}
+            value={`https://wisely.tr/join/${inviteToken}`}
             className="w-full pl-4 pr-10 py-3 bg-gray-100 border border-transparent rounded-lg text-gray-600 font-mono text-sm focus:outline-none"
           />
           <button

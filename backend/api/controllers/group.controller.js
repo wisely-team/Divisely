@@ -106,6 +106,11 @@ async function getUserGroups(req, res) {
             name: group.name,
             description: group.description,
             memberCount: Array.isArray(group.members) ? group.members.length : 0,
+            members: (group.members || []).map(member => ({
+                userId: member._id.toString(),
+                displayName: member.displayName,
+                email: member.email
+            })),
             totalExpenses: 0, // TODO: Replace with real expense sum when expense model exists
             yourBalance: (group.memberBalances || []).find(b => b?.id?.toString() === userId)?.balance || 0,
             lastActivity: (group.updatedAt || group.createdAt)?.toISOString()
@@ -152,7 +157,7 @@ async function getGroupDetails(req, res) {
         const isOwner = group.owner?._id?.toString() === requesterId;
 
         if (!isMember && !isOwner) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to view this group" });
         }
 
         const responseMembers = (group.members || []).map(member => ({
@@ -203,7 +208,7 @@ async function getGroupBalances(req, res) {
 
         const memberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
         if (!memberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to view this group's balances" });
         }
 
         const balancesMap = new Map();
@@ -295,4 +300,97 @@ async function getGroupBalances(req, res) {
     }
 }
 
-module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances };
+async function updateGroup(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+        const { name, description } = req.body || {};
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const ownerId = group.owner?.toString?.() || group.ownerId?.toString?.();
+        if (ownerId !== requesterId) {
+            return res.status(403).json({ success: false, error: "You are not authorized to update this group" });
+        }
+
+        if (name !== undefined) {
+            if (typeof name !== "string" || name.trim() === "") {
+                return res.status(400).json({ success: false, error: "invalid_name" });
+            }
+            group.name = name.trim();
+        }
+
+        if (description !== undefined) {
+            if (typeof description !== "string") {
+                return res.status(400).json({ success: false, error: "invalid_description" });
+            }
+            group.description = description.trim();
+        }
+
+        await group.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: group._id.toString(),
+                name: group.name,
+                description: group.description,
+                updatedAt: group.updatedAt?.toISOString?.() || new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error("Update group error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+async function deleteGroup(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        const group = await Group.findById(groupId).select("owner");
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const ownerId = group.owner?.toString?.();
+        if (ownerId !== requesterId) {
+            return res.status(403).json({ success: false, error: "You are not authorized to delete this group" });
+        }
+
+        await Group.deleteOne({ _id: groupId });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId,
+                deleted: true
+            }
+        });
+    } catch (error) {
+        console.error("Delete group error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances, updateGroup, deleteGroup };

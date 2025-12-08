@@ -34,7 +34,7 @@ async function createExpense(req, res) {
         const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
         const requesterInGroup = groupMemberIds.includes(requesterId);
         if (!requesterInGroup) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to create an expense in this group" });
         }
 
         if (!groupMemberIds.includes(payerId)) {
@@ -153,7 +153,7 @@ async function getGroupExpenses(req, res) {
 
         const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
         if (!groupMemberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to view expenses in this group" });
         }
 
         const expenses = await Expense.find({ group: groupId })
@@ -235,12 +235,12 @@ async function deleteExpense(req, res) {
         const isGroupOwner = group.owner?.toString() === requesterId;
         const isPayer = expense.paid_by?.toString() === requesterId;
         if (!isGroupOwner && !isPayer) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to delete this expense" });
         }
 
         const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
         if (!groupMemberIds.includes(requesterId)) {
-            return res.status(403).json({ success: false, error: "forbidden" });
+            return res.status(403).json({ success: false, error: "You are not authorized to delete this expense" });
         }
 
         const balanceUpdates = new Map();

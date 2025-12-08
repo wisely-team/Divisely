@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Input, Button } from '../UIComponents';
+import { useApp } from '../../context/AppContext';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateGroup: (name: string, description: string) => Promise<void>;
 }
 
-export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, onCreateGroup }) => {
+export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose }) => {
+  const { addGroup } = useApp();
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,11 +23,10 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setIsSubmitting(true);
-
+    setError(null);
     try {
-      await onCreateGroup(groupName, groupDescription);
+      await addGroup(groupName, groupDescription);
       setGroupName('');
       setGroupDescription('');
       onClose();
@@ -54,6 +54,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
           value={groupDescription}
           onChange={e => setGroupDescription(e.target.value)}
           placeholder="What's this for?"
+          required
           disabled={isSubmitting}
         />
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
@@ -61,7 +62,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" disabled={isSubmitting}>
+          <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Creating...' : 'Create Group'}
           </Button>
         </div>

@@ -77,5 +77,27 @@ export const groupService = {
       }>;
       createdAt: string;
     }>(response, 'fetch_group_details_failed');
+  },
+
+  async updateGroup(groupId: string, updates: { name?: string; description?: string }, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(updates)
+    });
+    return handleResponse<void>(response, 'update_group_failed');
+  },
+
+  async deleteGroup(groupId: string, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    return handleResponse<void>(response, 'delete_group_failed');
   }
 };
