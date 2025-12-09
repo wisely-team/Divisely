@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, Loader2, Maximize2 } from 'lucide-react';
+import { ImagePreviewModal } from '../ui/ImagePreviewModal';
 
 interface ReceiptData {
   description: string;
@@ -15,6 +16,7 @@ interface ReceiptScannerProps {
 export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onScanComplete, onError }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,12 +124,23 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onScanComplete, 
         </div>
       ) : previewImage ? (
         <div className="space-y-3">
-          <div className="relative rounded-lg overflow-hidden border border-gray-200">
+          <div className="relative rounded-lg overflow-hidden border border-gray-200 group">
             <img
               src={previewImage}
               alt="Receipt preview"
               className="w-full h-32 object-cover"
             />
+            {/* Overlay with Expand Button */}
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(true)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white text-gray-900 px-4 py-2 rounded-lg shadow-lg hover:bg-gray-100 flex items-center gap-2 font-medium text-sm"
+              >
+                <Maximize2 className="w-4 h-4" />
+                View Full Size
+              </button>
+            </div>
           </div>
           <p className="text-xs text-center text-gray-500">
             Receipt uploaded successfully. Fields below will be auto-filled.
@@ -169,6 +182,16 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onScanComplete, 
             Take Photo
           </button>
         </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <ImagePreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => setIsPreviewModalOpen(false)}
+          imageUrl={previewImage}
+          title="Receipt Preview"
+        />
       )}
     </div>
   );

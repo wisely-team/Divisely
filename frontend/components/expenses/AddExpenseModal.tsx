@@ -60,9 +60,11 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
   const handleReceiptScan = (data: { description: string; amount: number; date: string }) => {
     setExpDesc(data.description);
-    setExpAmount(data.amount.toString());
     setExpDate(data.date);
     setScanError(null);
+
+    // Set amount last - this will trigger the useEffect to recalculate splits
+    setExpAmount(data.amount.toString());
   };
 
   const handleScanError = (error: string) => {
@@ -72,9 +74,34 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const toggleSelectAll = () => {
     const newValue = !isAllSelected;
     setIsAllSelected(newValue);
+
+    if (expSplitType === 'EQUAL' && expAmount) {
+      const total = parseFloat(expAmount);
+      if (!isNaN(total) && total > 0) {
+        const count = newValue ? expParticipants.length : 0;
+
+        if (count > 0) {
+          const shares = calculateEqualSplit(total, count);
+          setExpParticipants(prev => prev.map((p, idx) => ({
+            ...p,
+            isChecked: newValue,
+            shareAmount: shares[idx]
+          })));
+        } else {
+          setExpParticipants(prev => prev.map(p => ({
+            ...p,
+            isChecked: newValue,
+            shareAmount: 0
+          })));
+        }
+        return;
+      }
+    }
+
     setExpParticipants(prev => prev.map(p => ({ ...p, isChecked: newValue })));
   };
 
+  // Update "Select All" checkbox state
   useEffect(() => {
     if (expParticipants.length > 0) {
       const all = expParticipants.every(p => p.isChecked);
@@ -82,32 +109,36 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     }
   }, [expParticipants]);
 
-  // Equal Split Logic with Penny Allocation
+  // Equal Split Logic - Recalculate when amount or split type changes
   useEffect(() => {
     if (!isOpen) return;
+    if (expSplitType !== 'EQUAL') return;
+    if (!expAmount) return;
 
-    const total = parseFloat(expAmount) || 0;
+    const total = parseFloat(expAmount);
+    if (isNaN(total) || total <= 0) return;
 
-    if (expSplitType === 'EQUAL') {
-      const activeMembers = expParticipants.filter(p => p.isChecked);
+    // Use functional update to get the latest participants state
+    setExpParticipants(prev => {
+      if (prev.length === 0) return prev; // Don't update if not initialized
+
+      const activeMembers = prev.filter(p => p.isChecked);
       const count = activeMembers.length;
 
       if (count > 0) {
         const shares = calculateEqualSplit(total, count);
         let shareIndex = 0;
 
-        setExpParticipants(prev =>
-          prev.map(p => {
-            if (!p.isChecked) return { ...p, shareAmount: 0 };
-            const share = shares[shareIndex++];
-            return { ...p, shareAmount: share };
-          })
-        );
+        return prev.map(p => {
+          if (!p.isChecked) return { ...p, shareAmount: 0 };
+          const share = shares[shareIndex++];
+          return { ...p, shareAmount: share };
+        });
       } else {
-        setExpParticipants(prev => prev.map(p => ({ ...p, shareAmount: 0 })));
+        return prev.map(p => ({ ...p, shareAmount: 0 }));
       }
-    }
-  }, [expAmount, expSplitType, expParticipants.map(p => p.isChecked).join(','), isOpen]);
+    });
+  }, [expAmount, expSplitType, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,9 +314,30 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                       checked={p.isChecked}
                       onChange={e => {
                         const checked = e.target.checked;
+
+                        // Update checked state
                         setExpParticipants(prev => {
                           const newArr = [...prev];
                           newArr[index] = { ...newArr[index], isChecked: checked };
+
+                          // Recalculate splits if EQUAL mode
+                          if (expSplitType === 'EQUAL' && expAmount) {
+                            const total = parseFloat(expAmount);
+                            if (!isNaN(total) && total > 0) {
+                              const activeCount = newArr.filter(x => x.isChecked).length;
+
+                              if (activeCount > 0) {
+                                const shares = calculateEqualSplit(total, activeCount);
+                                let shareIdx = 0;
+
+                                return newArr.map(x => ({
+                                  ...x,
+                                  shareAmount: x.isChecked ? shares[shareIdx++] : 0
+                                }));
+                              }
+                            }
+                          }
+
                           return newArr;
                         });
                       }}
