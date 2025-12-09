@@ -5,6 +5,8 @@ import { Layout } from './components/ui/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { GroupDetailsPage } from './pages/GroupDetailsPage';
+import Settings from './pages/Settings';
+import RecentActivity from './pages/RecentActivity';
 
 const AppContent = () => {
   const { currentUser } = useApp();
@@ -31,6 +33,26 @@ const AppContent = () => {
             <Layout>
               <GroupDetailsPage />
             </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          currentUser ? (
+            <Settings />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/activity"
+        element={
+          currentUser ? (
+            <RecentActivity />
           ) : (
             <Navigate to="/login" />
           )

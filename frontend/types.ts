@@ -37,6 +37,21 @@ export interface Balance {
   amount: number;
 }
 
+// For sidebar quick group list
+export interface GroupSummary {
+  id: string;
+  name: string;
+  unreadCount?: number; // Number of new expenses/activities
+  lastActivity?: string;
+}
+
+// For sidebar balance widget
+export interface UserBalance {
+  totalOwed: number; // Total amount others owe to you
+  totalDebt: number; // Total amount you owe to others
+  netBalance: number; // totalOwed - totalDebt
+}
+
 // For the UI context
 export interface AppState {
   currentUser: User | null;
