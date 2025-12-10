@@ -7,7 +7,10 @@ async function createExpense(req, res) {
     try {
         const requesterId = req.user?.userId;
         const { groupId, description, amount, payerId, splits } = req.body || {};
-        const paidAt = req.body?.paidAt || req.body?.paid_at || req.body?.["paid at"];
+        let paidAt = req.body?.paidAt || req.body?.paid_at || req.body?.["paid at"];
+        // trim paidAt to be only day
+        paidAt = typeof paidAt === "string" ? paidAt.trim().split("T")[0] : paidAt;
+
         console.log("Create expense request by user:", requesterId);
         if (!requesterId) {
             return res.status(401).json({ success: false, error: "unauthorized" });

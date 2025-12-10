@@ -6,6 +6,9 @@ import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { GroupDetailsPage } from './pages/GroupDetailsPage';
+import { UserProfilePage } from './pages/UserProfilePage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { JoinGroupPage } from './pages/JoinGroupPage';
 
 const AppContent = () => {
   const { currentUser } = useApp();
@@ -14,6 +17,8 @@ const AppContent = () => {
     <Routes>
       <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/dashboard" />} />
       <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/forgot-password" element={!currentUser ? <ForgotPasswordPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/join/:groupId" element={<JoinGroupPage />} />
       <Route
         path="/dashboard"
         element={
@@ -32,6 +37,18 @@ const AppContent = () => {
           currentUser ? (
             <Layout>
               <GroupDetailsPage />
+            </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          currentUser ? (
+            <Layout>
+              <UserProfilePage />
             </Layout>
           ) : (
             <Navigate to="/login" />

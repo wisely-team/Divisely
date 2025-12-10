@@ -27,6 +27,7 @@ export interface Expense {
   description: string;
   amount: number;
   date: string;
+  createdAt?: string;
   splits: Split[];
   splitType: 'EQUAL' | 'CUSTOM';
   myShare?: number;

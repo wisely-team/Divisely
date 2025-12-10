@@ -4,6 +4,7 @@ import { Modal, Button } from '../UIComponents';
 import { Expense, User, Split } from '../../types';
 import { calculateEqualSplit, validateCustomSplit } from '../../utils/calculations';
 import { ReceiptScanner } from './ReceiptScanner';
+import { ChevronDown } from 'lucide-react';
 
 interface ParticipantState {
   userId: string;
@@ -239,7 +240,6 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                   value={expDate}
                   onChange={e => setExpDate(e.target.value)}
                 />
-                <Calendar className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -261,7 +261,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                 <div className="bg-gray-200 rounded-full p-1">
-                  <UserIcon className="w-3 h-3 text-gray-500" />
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
                 </div>
               </div>
             </div>

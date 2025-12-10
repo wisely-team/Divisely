@@ -53,5 +53,17 @@ export const authService = {
       response,
       "register_failed"
     );
+  },
+
+  async forgotPassword(email: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email })
+    });
+
+    return handleResponse<{ message: string }>(response, "forgot_password_failed");
   }
 };

@@ -79,6 +79,23 @@ export const groupService = {
     }>(response, 'fetch_group_details_failed');
   },
 
+  async joinGroup(groupId: string, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/groups/${groupId}/join`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    return handleResponse<{
+      groupId: string;
+      name: string;
+      description?: string;
+      members?: Array<{ userId: string; displayName?: string; email?: string }>;
+      memberCount?: number;
+    }>(response, 'join_group_failed');
+  },
+
   async updateGroup(groupId: string, updates: { name?: string; description?: string }, accessToken: string) {
     const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
       method: 'PUT',
@@ -99,5 +116,15 @@ export const groupService = {
       }
     });
     return handleResponse<void>(response, 'delete_group_failed');
+  },
+
+  async removeMember(groupId: string, userId: string, accessToken: string) {
+    const response = await fetch(`${API_BASE_URL}/groups/${groupId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    return handleResponse<void>(response, 'remove_member_failed');
   }
 };

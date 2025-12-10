@@ -79,7 +79,7 @@ export const SignUpPage = () => {
                 label="Display Name"
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
-                placeholder="Ali Veli"
+                placeholder="John Doe"
                 className="h-11 bg-black border-gray-800 text-white placeholder-gray-500"
                 required
               />

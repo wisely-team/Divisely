@@ -40,14 +40,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
         )}
         <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
           <div className="flex -space-x-2">
-            {[...Array(group.members.length)].map((_, i) => (
-              <div
-                key={i}
-                className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500"
-              >
-                {i + 1}
-              </div>
-            ))}
+            {group.members.length > 1 ? `${group.members.length} Members` : "1 Member"}
           </div>
           <span className="flex items-center text-sm font-bold text-teal-600 group-hover:underline">
             View Details <ArrowRight className="w-4 h-4 ml-1" />

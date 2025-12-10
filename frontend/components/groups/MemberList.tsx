@@ -1,6 +1,7 @@
 import React from 'react';
 import { User } from '../../types';
-import { Card } from '../UIComponents';
+import { Card, Button } from '../UIComponents';
+import { Trash2 } from 'lucide-react';
 
 interface MemberListProps {
   members: User[];
@@ -39,7 +40,15 @@ export const MemberList: React.FC<MemberListProps> = ({
                 </p>
               </div>
             </div>
-            {/* Remove member intentionally disabled */}
+              {isOwner && user.id !== ownerId && (
+                <Button
+                  variant="ghost"
+                  className="text-gray-300 hover:text-red-500 group-hover:opacity-100 pl-2 pr-2 hover:bg-red-100 rounded-lg"
+                  onClick={() => onRemoveMember(user.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
           </div>
         ))}
       </div>

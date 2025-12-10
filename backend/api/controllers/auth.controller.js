@@ -112,7 +112,7 @@ async function login(req, res) {
         console.error("Login error:", error);
         return res.status(500).json({
             success: false,
-            error: "server_error"
+            error: "Server error, please try again later."
         });
     }
 }
@@ -125,7 +125,7 @@ async function logout(req, res) {
         if (!token) {
             return res.status(401).json({
                 success: false,
-                error: "missing_token"
+                error: "Please sign in again."
             });
         }
 
@@ -134,7 +134,7 @@ async function logout(req, res) {
         } catch (verifyError) {
             return res.status(401).json({
                 success: false,
-                error: "invalid_token"
+                error: "Please sign in again."
             });
         }
 
@@ -146,9 +146,33 @@ async function logout(req, res) {
         console.error("Logout error:", error);
         return res.status(500).json({
             success: false,
-            error: "server_error"
+            error: "Server error, please try again later."
         });
     }
 }
 
-module.exports = { register, login, logout };
+async function forgotPassword(req, res) {
+    try {
+        const { email } = req.body || {};
+
+        if (!email || typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ success: false, error: "Missing email" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail }).select("_id email");
+
+        if (!user) {
+            return res.status(200).json({ success: false, data: { message: "No user found with that email." } });
+        }
+
+        // TODO: Generate a reset token and send email when email infrastructure is ready.
+
+        return res.status(200).json({ success: true, data: { message: "Reset instructions sent." } });
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        return res.status(500).json({ success: false, error: "Server error, please try again later." });
+    }
+}
+
+module.exports = { register, login, logout, forgotPassword };

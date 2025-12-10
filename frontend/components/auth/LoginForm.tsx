@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button, Input } from '../UIComponents';
 
@@ -46,9 +47,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <label className="text-sm font-medium text-gray-700">Password</label>
-            <a href="#" className="text-sm font-medium text-teal-600 hover:text-teal-500">
-              Forgot Password?
-            </a>
+            <Link to="/forgot-password" className="text-sm font-medium text-teal-600 hover:text-teal-500">
+              Forgot your password?
+            </Link>
           </div>
           <div className="relative">
             <input

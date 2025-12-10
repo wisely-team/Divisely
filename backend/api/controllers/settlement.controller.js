@@ -53,8 +53,7 @@ async function createSettlement(req, res) {
             to_user: toUserId,
             amount: amountNum,
             description: typeof description === "string" ? description.trim() : undefined,
-            settledAt: settledAt ? new Date(settledAt) : undefined,
-            createdAt: createdAt ? new Date(createdAt) : undefined
+            settledAt: settledAt ? new Date(settledAt) : undefined
         });
 
         const balanceUpdates = new Map();
@@ -90,6 +89,7 @@ async function createSettlement(req, res) {
                 toUserId,
                 amount: settlement.amount,
                 note: settlement.description,
+                createdAt: settlement.createdAt.toISOString(),
                 settledAt: settlement.settledAt ? settlement.settledAt.toISOString() : undefined,
                 fromUserName: fromUserDoc?.displayName || fromUserDoc?.email,
                 toUserName: toUserDoc?.displayName || toUserDoc?.email
@@ -134,7 +134,8 @@ async function getSettlements(req, res) {
             toUserId: s.to_user?.toString(),
             amount: Number(s.amount) || 0,
             note: s.description,
-            settledAt: s.settledAt ? s.settledAt.toISOString() : undefined
+            settledAt: s.settledAt ? s.settledAt.toISOString() : undefined,
+            createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString()
         }));
 
         return res.status(200).json({

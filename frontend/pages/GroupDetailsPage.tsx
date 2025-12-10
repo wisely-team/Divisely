@@ -33,13 +33,35 @@ export const GroupDetailsPage = () => {
     settleUp,
     updateGroup,
     removeMember,
+    removeMemberFromServer,
     deleteGroup
   } = useApp();
   const navigate = useNavigate();
 
+  const buildSortTimestamp = (created?: string, fallback?: string) => {
+    const createdTime = created ? new Date(created).getTime() : Number.NaN;
+    const fallbackTime = fallback ? new Date(fallback).getTime() : Number.NaN;
+    if (!Number.isNaN(createdTime)) return createdTime;
+    if (!Number.isNaN(fallbackTime)) return fallbackTime;
+    return 0;
+  };
+
+  function sortItems(items) {
+    return [...items].sort((a, b) => {
+      const d1 = new Date(a.date).getTime();
+      const d2 = new Date(b.date).getTime();
+
+      if (d1 !== d2) return d1 - d2;
+
+      const c1 = new Date(a.createdAt).getTime();
+      const c2 = new Date(b.createdAt).getTime();
+      return c1 - c2;
+    });
+  }
+
   const group = groups.find(g => g.id === id);
   const groupExpenses = expenses.filter(e => e.groupId === id);
-  groupExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  groupExpenses.sort((a, b) => buildSortTimestamp(b.createdAt, b.date) - buildSortTimestamp(a.createdAt, a.date));
   const groupSettlements = (settlements || []).filter(s => s.groupId === id);
   const balances = id ? getGroupBalances(id) : [];
 
@@ -102,6 +124,16 @@ export const GroupDetailsPage = () => {
     loadGroupBalances(id);
   }, [id, loadGroupExpenses, loadSettlements, loadGroupBalances]);
 
+  const handleRemoveMember = async (userId: string) => {
+    try {
+      await removeMemberFromServer(group.id, userId);
+      setGroupMembers(prev => prev.filter(m => m.id !== userId));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to remove member';
+      alert(message);
+    }
+  };
+
   if (!group) return <div>Group not found</div>;
 
   const groupUsers = React.useMemo(() => {
@@ -137,6 +169,7 @@ export const GroupDetailsPage = () => {
       description: expense.description,
       amount: expense.amount,
       date: expense.date,
+      createdAt: expense.createdAt,
       payerId: expense.payerId,
       splits: expense.splits,
       myShare: expense.myShare,
@@ -149,11 +182,14 @@ export const GroupDetailsPage = () => {
       description: settlement.note || 'Settlement',
       amount: settlement.amount,
       date: settlement.settledAt || settlement.createdAt || new Date().toISOString(),
+      createdAt: settlement.createdAt,
       fromUserId: settlement.fromUserId,
       toUserId: settlement.toUserId
     }));
-
-    return [...expenseItems, ...settlementItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let all = [...expenseItems, ...settlementItems];
+    all = sortItems(all);
+    all = all.reverse();
+    return all
   }, [groupExpenses, groupSettlements]);
 
   const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
@@ -350,7 +386,7 @@ export const GroupDetailsPage = () => {
             ownerId={ownerId}
             currentUserId={currentUser?.id || ''}
             isOwner={isOwner}
-            onRemoveMember={userId => removeMember(group.id, userId)}
+            onRemoveMember={handleRemoveMember}
           />
 
           {detailsError && <p className="text-sm text-red-600">{detailsError}</p>}

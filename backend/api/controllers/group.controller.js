@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const Group = require("../models/group.model");
 const User = require("../models/user.model");
+const Expense = require("../models/expense.model");
+const Settlement = require("../models/settlement.model");
 
 async function createGroup(req, res) {
     try {
@@ -361,16 +363,16 @@ async function deleteGroup(req, res) {
         const { groupId } = req.params;
 
         if (!requesterId) {
-            return res.status(401).json({ success: false, error: "unauthorized" });
+            return res.status(401).json({ success: false, error: "You are not authorized to delete this group" });
         }
 
         if (!mongoose.Types.ObjectId.isValid(groupId)) {
-            return res.status(400).json({ success: false, error: "invalid_group_id" });
+            return res.status(400).json({ success: false, error: "Invalid group ID" });
         }
 
         const group = await Group.findById(groupId).select("owner");
         if (!group) {
-            return res.status(404).json({ success: false, error: "group_not_found" });
+            return res.status(404).json({ success: false, error: "Group not found" });
         }
 
         const ownerId = group.owner?.toString?.();
@@ -379,6 +381,14 @@ async function deleteGroup(req, res) {
         }
 
         await Group.deleteOne({ _id: groupId });
+        
+        const expenses = await Expense.find({ group: groupId }).select("_id").lean();
+        const expenseIds = expenses.map(e => e._id);
+        await Expense.deleteMany({ _id: { $in: expenseIds } });
+
+        const settlements = await Settlement.find({ group: groupId }).select("_id").lean();
+        const settlementIds = settlements.map(s => s._id);
+        await Settlement.deleteMany({ _id: { $in: settlementIds } });
 
         return res.status(200).json({
             success: true,
@@ -393,4 +403,116 @@ async function deleteGroup(req, res) {
     }
 }
 
-module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances, updateGroup, deleteGroup };
+async function joinGroup(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        const group = await Group.findById(groupId).populate("members", "displayName email");
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const isMember = Array.isArray(group.members)
+            ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
+            : false;
+
+        if (!isMember) {
+            group.members.push(requesterId);
+            const hasBalance = (group.memberBalances || []).some(b => b?.id?.toString() === requesterId);
+            if (!hasBalance) {
+                group.memberBalances.push({ id: requesterId, balance: 0 });
+            }
+            await group.save();
+        }
+
+        const isMemberInGroup = Array.isArray(group.members)
+            ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
+            : false;
+        if (!isMemberInGroup) {
+            return res.status(500).json({ success: false, error: "failed_to_add_member" });
+        }
+
+        const responseMembers = (group.members || []).map(member => ({
+            userId: (member?._id || member)?.toString(),
+            displayName: member.displayName || member.email,
+            email: member.email
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: group._id.toString(),
+                name: group.name,
+                description: group.description,
+                members: responseMembers,
+                memberCount: responseMembers.length
+            }
+        });
+    } catch (error) {
+        console.error("Join group error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+async function removeMember(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId, userId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ success: false, error: "invalid_id" });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const ownerId = group.owner?.toString?.();
+        if (ownerId !== requesterId) {
+            return res.status(403).json({ success: false, error: "forbidden" });
+        }
+
+        // Owners cannot remove themselves
+        if (userId === ownerId) {
+            return res.status(400).json({ success: false, error: "cannot_remove_owner" });
+        }
+
+        const beforeCount = group.members.length;
+        group.members = group.members.filter(m => m.toString() !== userId);
+        // group.memberBalances = (group.memberBalances || []).filter(b => b.id?.toString() !== userId);
+
+        if (group.members.length === beforeCount) {
+            return res.status(404).json({ success: false, error: "member_not_found" });
+        }
+
+        await group.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: group._id.toString(),
+                removedUserId: userId,
+                memberCount: group.members.length
+            }
+        });
+    } catch (error) {
+        console.error("Remove member error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances, updateGroup, deleteGroup, joinGroup, removeMember };

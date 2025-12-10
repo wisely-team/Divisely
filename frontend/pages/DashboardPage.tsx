@@ -9,8 +9,6 @@ export const DashboardPage = () => {
   const { groups, expenses, currentUser, getGroupBalances } = useApp();
   const [showNewGroup, setShowNewGroup] = useState(false);
 
-  console.log('DashboardPage render: ', { groups, expenses, currentUser });
-
   // Calculate total balance of current user
   const allgroups = groups.filter(g => g.members.includes(currentUser?.id || ''));
   const balances = allgroups.flatMap(group => getGroupBalances(group.id));

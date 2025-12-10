@@ -17,6 +17,7 @@ interface SettleUpResponse {
   amount: number;
   note?: string;
   settledAt?: string;
+  createdAt?: string;
 }
 
 const handleResponse = async <T>(response: Response, defaultError: string): Promise<T> => {
@@ -31,7 +32,7 @@ const handleResponse = async <T>(response: Response, defaultError: string): Prom
 export const settlementService = {
   async settleUp(payload: SettleUpPayload, accessToken: string) {
     const settledAt = payload.date ? new Date(payload.date).toISOString() : undefined;
-    const createdAt = settledAt;
+    const createdAt = new Date().toISOString();
 
     const response = await fetch(`${API_BASE_URL}/settlements`, {
       method: 'POST',

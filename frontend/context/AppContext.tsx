@@ -5,6 +5,7 @@ import { groupService } from '../services/groupService';
 import { expenseService } from '../services/expenseService';
 import { settlementService } from '../services/settlementService';
 import { balanceService } from '../services/balanceService';
+import { userService } from '../services/userService';
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
@@ -13,7 +14,10 @@ interface AppContextType extends AppState {
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => Promise<void>;
   removeMember: (groupId: string, userId: string) => void;
+  joinGroup: (groupId: string) => Promise<Group>;
+  removeMemberFromServer: (groupId: string, userId: string) => Promise<void>;
   loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
+  updateProfile: (data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) => Promise<User>;
   settleUp: (payload: { groupId: string; fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => Promise<Settlement>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
@@ -292,6 +296,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const joinGroup = async (groupId: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to join the group.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    const response = await groupService.joinGroup(groupId, accessToken);
+
+    // Fetch full details to get members list fresh
+    let details = response;
+    try {
+      details = await groupService.getGroupDetails(groupId, accessToken);
+    } catch (_) {
+      // fallback to response
+    }
+
+    const memberIds = (details.members || response.members || []).map(m => m.userId);
+    const normalized: Group = {
+      id: details.groupId || groupId,
+      name: details.name,
+      description: details.description,
+      ownerId: (details as any).createdBy || currentUser.id,
+      members: memberIds.length ? memberIds : [currentUser.id],
+      currency: 'USD',
+      created_at: (details as any).createdAt || new Date().toISOString()
+    };
+
+    setGroups(prev => {
+      const exists = prev.find(g => g.id === normalized.id);
+      if (exists) {
+        return prev.map(g => (g.id === normalized.id ? { ...g, members: normalized.members, name: normalized.name, description: normalized.description } : g));
+      }
+      return [...prev, normalized];
+    });
+
+    return normalized;
+  };
+
+  const removeMemberFromServer = async (groupId: string, userId: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to remove a member.');
+    }
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    await groupService.removeMember(groupId, userId, accessToken);
+    setGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return { ...g, members: g.members.filter(m => m !== userId) };
+    }));
+  };
+
+  const updateProfile = async (data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) => {
+    if (!currentUser) {
+      throw new Error('Please log in to update your profile.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    const payload = {
+      displayName: data.name,
+      email: data.email,
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword
+    };
+
+    const updated = await userService.updateProfile(payload, accessToken);
+    const normalized: User = {
+      id: updated.userId,
+      name: updated.displayName,
+      email: updated.email,
+      avatar: currentUser.avatar
+    };
+
+    setCurrentUser(normalized);
+    localStorage.setItem('user', JSON.stringify(normalized));
+
+    setUsers(prev => {
+      const existingIdx = prev.findIndex(u => u.id === normalized.id);
+      if (existingIdx === -1) return [...prev, normalized];
+      const clone = [...prev];
+      clone[existingIdx] = { ...clone[existingIdx], ...normalized };
+      return clone;
+    });
+
+    return normalized;
+  };
+
   const loadGroupExpenses = useCallback(async (groupId: string) => {
     if (!currentUser) return [];
 
@@ -315,6 +416,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: expense.description || 'Expense',
           amount,
           date: expense.paidTime || expense.createdAt || new Date().toISOString(),
+          createdAt: expense.createdAt,
           splits,
           splitType: 'CUSTOM',
           myShare: requesterShare,
@@ -354,7 +456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         note: s.note,
         description: s.note,
         settledAt: s.settledAt,
-        createdAt: s.settledAt || s.settlementId
+        createdAt: s.createdAt || s.settledAt || new Date().toISOString()
       }));
 
       setSettlements(prev => {
@@ -389,7 +491,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       note: response.note || payload.description,
       description: response.note || payload.description,
       settledAt: response.settledAt || payload.date,
-      createdAt: response.settledAt || payload.date || new Date().toISOString()
+      createdAt: response.createdAt || response.settledAt || payload.date || new Date().toISOString()
     };
 
     setSettlements(prev => {
@@ -434,6 +536,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: apiExpense.description || newExpenseData.description,
         amount: typeof apiExpense.amount === 'number' ? apiExpense.amount : newExpenseData.amount,
         date: newExpenseData.date || apiExpense.createdAt || new Date().toISOString(),
+        createdAt: apiExpense.createdAt || newExpenseData.date || new Date().toISOString(),
         splits: (apiExpense.splits || newExpenseData.splits).map(split => ({
           userId: split.userId,
           amount: split.amount
@@ -516,7 +619,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, loadGroupExpenses, settleUp, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, removeMemberFromServer, joinGroup, loadGroupExpenses, updateProfile, settleUp, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
       {children}
     </AppContext.Provider>
   );

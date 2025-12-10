@@ -4,8 +4,8 @@ import { Expense, Settlement, User } from '../../types';
 import { Card } from '../UIComponents';
 
 type TransactionItem =
-  | ({ type: 'expense' } & Pick<Expense, 'id' | 'description' | 'amount' | 'date' | 'payerId' | 'splits' | 'myShare' | 'isBorrow'>)
-  | ({ type: 'settlement' } & Pick<Settlement, 'id' | 'description' | 'amount' | 'settledAt' | 'note'> & { date: string; fromUserId?: string; toUserId?: string });
+  | ({ type: 'expense' } & Pick<Expense, 'id' | 'description' | 'amount' | 'date' | 'payerId' | 'splits' | 'myShare' | 'isBorrow' | 'createdAt'>)
+  | ({ type: 'settlement' } & Pick<Settlement, 'id' | 'description' | 'amount' | 'settledAt' | 'note' | 'createdAt'> & { date: string; fromUserId?: string; toUserId?: string });
 
 interface ExpenseListProps {
   transactions: TransactionItem[];
@@ -77,7 +77,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, o
               ? 'You paid'
               : `${payerUser?.name || 'Someone'} paid`;
           const description = isSettlement ? (item.description || item.note || 'Settlement') : item.description;
-          const dateString = isSettlement ? item.settledAt || item.date : item.date;
+          let dateString = isSettlement ? item.settledAt || item.date : item.date;
+          dateString = dateString.split('T')[0]; // Extract date part only
           return (
             <div key={item.id} className="p-5 hover:bg-gray-50 transition-colors flex justify-between items-center group">
               <div className="flex items-start gap-4">
