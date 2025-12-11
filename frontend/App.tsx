@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, MemoryRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/ui/Layout';
 import { LoginPage } from './pages/LoginPage';
@@ -11,6 +11,12 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { JoinGroupPage } from './pages/JoinGroupPage';
 import Settings from './pages/Settings';
 import RecentActivity from './pages/RecentActivity';
+
+// Redirect component for /groups/:id -> /group/:id
+const GroupsRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/group/${id}`} replace />;
+};
 
 const AppContent = () => {
   const { currentUser } = useApp();
@@ -45,6 +51,8 @@ const AppContent = () => {
           )
         }
       />
+      {/* Redirect /groups/:id to /group/:id for backward compatibility */}
+      <Route path="/groups/:id" element={<GroupsRedirect />} />
       <Route
         path="/profile"
         element={

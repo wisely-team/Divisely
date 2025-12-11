@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { Button } from '../UIComponents';
 import { QuickGroupList } from './QuickGroupList';
 import { CreateGroupModal } from '../groups/CreateGroupModal';
+import { GlobalAddExpenseModal } from '../expenses/GlobalAddExpenseModal';
 import type { GroupSummary } from '../../types';
 
 interface LayoutProps {
@@ -16,6 +17,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = React.useState(false);
+  const [isGlobalExpenseModalOpen, setIsGlobalExpenseModalOpen] = React.useState(false);
   const [isDesktop, setIsDesktop] = React.useState(() =>
     typeof window === 'undefined' ? true : window.innerWidth >= 1075
   );
@@ -93,8 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <button
           onClick={() => {
             closeSidebar();
-            // TODO: Open AddExpenseModal
-            console.log('Open Add Expense Modal');
+            setIsGlobalExpenseModalOpen(true);
           }}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors shadow-sm"
         >
@@ -237,6 +238,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
         onCreateGroup={handleCreateGroup}
+      />
+
+      {/* Global Add Expense Modal */}
+      <GlobalAddExpenseModal
+        isOpen={isGlobalExpenseModalOpen}
+        onClose={() => setIsGlobalExpenseModalOpen(false)}
       />
     </div>
   );
