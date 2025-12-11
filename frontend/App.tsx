@@ -9,6 +9,8 @@ import { GroupDetailsPage } from './pages/GroupDetailsPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { JoinGroupPage } from './pages/JoinGroupPage';
+import Settings from './pages/Settings';
+import RecentActivity from './pages/RecentActivity';
 
 const AppContent = () => {
   const { currentUser } = useApp();
@@ -49,6 +51,30 @@ const AppContent = () => {
           currentUser ? (
             <Layout>
               <UserProfilePage />
+            </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          currentUser ? (
+            <Layout>
+              <Settings />
+            </Layout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/activity"
+        element={
+          currentUser ? (
+            <Layout>
+              <RecentActivity />
             </Layout>
           ) : (
             <Navigate to="/login" />

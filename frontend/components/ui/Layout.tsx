@@ -1,20 +1,34 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wallet, PieChart, Users, LogOut, Menu, X, User } from 'lucide-react';
+import { Wallet, PieChart, LogOut, Menu, X, Plus, Clock, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../UIComponents';
+import { QuickGroupList } from './QuickGroupList';
+import { CreateGroupModal } from '../groups/CreateGroupModal';
+import type { GroupSummary } from '../../types';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { currentUser, logout } = useApp();
+  const { currentUser, logout, groups, addGroup } = useApp();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = React.useState(false);
   const [isDesktop, setIsDesktop] = React.useState(() =>
     typeof window === 'undefined' ? true : window.innerWidth >= 1075
   );
+
+  // Convert groups to GroupSummary format
+  const groupSummaries: GroupSummary[] = React.useMemo(() => {
+    return (groups || []).map(group => ({
+      id: group.id,
+      name: group.name,
+      unreadCount: 0, // TODO: Get from API
+      lastActivity: group.created_at
+    }));
+  }, [groups]);
 
   const handleLogout = () => {
     logout();
@@ -22,6 +36,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  const handleCreateGroup = (name: string, description: string) => {
+    addGroup({
+      id: Date.now().toString(),
+      name,
+      description,
+      ownerId: currentUser?.id || '',
+      members: [currentUser?.id || ''],
+      currency: 'USD',
+      created_at: new Date().toISOString(),
+    });
+    setIsCreateGroupModalOpen(false);
+  };
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -43,6 +70,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
+      {/* Logo Header */}
       <div className="p-6 flex items-center justify-between gap-3 border-b border-gray-100 md:border-b-0">
         <div className="flex items-center gap-3">
           <div className="bg-teal-500 p-2 rounded-lg shadow-sm">
@@ -60,40 +88,91 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </button>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
-        <Link
-          to="/dashboard"
-          onClick={closeSidebar}
-          className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+      {/* Quick Action: New Expense Button */}
+      <div className="px-4 pt-4">
+        <button
+          onClick={() => {
+            closeSidebar();
+            // TODO: Open AddExpenseModal
+            console.log('Open Add Expense Modal');
+          }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors shadow-sm"
         >
-          <PieChart className="w-5 h-5" />
-          Dashboard
-        </Link>
-        <Link
-          to="/dashboard"
-          onClick={closeSidebar}
-          className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
-        >
-          <Users className="w-5 h-5" />
-          My Groups
-        </Link>
-        <Link
-          to="/profile"
-          onClick={closeSidebar}
-          className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
-        >
-          <User className="w-5 h-5" />
-          Account
-        </Link>
+          <Plus className="w-5 h-5" />
+          New Expense
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+        {/* Main Menu */}
+        <div className="space-y-1 mb-4">
+          <Link
+            to="/dashboard"
+            onClick={closeSidebar}
+            className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+          >
+            <PieChart className="w-5 h-5" />
+            Dashboard
+          </Link>
+          <Link
+            to="/activity"
+            onClick={closeSidebar}
+            className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+          >
+            <Clock className="w-5 h-5" />
+            Recent Activity
+          </Link>
+        </div>
+
+        {/* Groups Section */}
+        <div className="px-4 py-2 flex items-center justify-between">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+            Groups
+          </span>
+          <button
+            onClick={() => {
+              setIsCreateGroupModalOpen(true);
+            }}
+            className="p-1 text-gray-400 hover:text-teal-600 transition-colors"
+            aria-label="Create new group"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Quick Group List */}
+        <QuickGroupList
+          groups={groupSummaries}
+          onCloseSidebar={closeSidebar}
+        />
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-start gap-3 mb-4 px-2">
+      {/* User Profile & Actions */}
+      <div className="p-4 border-t border-gray-200 space-y-3">
+        <div className="flex items-center gap-3 px-2">
+          <img
+            src={currentUser?.avatar}
+            alt=""
+            className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+          />
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold text-gray-900 truncate">{currentUser?.name}</p>
             <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
           </div>
         </div>
+
+        {/* Settings Link */}
+        <Link
+          to="/settings"
+          onClick={closeSidebar}
+          className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors text-sm font-medium"
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </Link>
+
+        {/* Logout Button */}
         <Button
           variant="secondary"
           className="w-full flex items-center justify-center gap-2 text-sm"
@@ -152,6 +231,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="max-w-6xl mx-auto">{children}</div>
         </main>
       </div>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+        onCreateGroup={handleCreateGroup}
+      />
     </div>
   );
 };
