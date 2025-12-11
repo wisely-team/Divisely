@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { User, Mail, Lock, Bell, Globe, Palette } from 'lucide-react';
-import { Layout } from '../components/ui/Layout';
 import { Card, Button, Input } from '../components/UIComponents';
 import { useApp } from '../context/AppContext';
 
@@ -68,7 +67,7 @@ export default function Settings() {
   ];
 
   return (
-    <Layout>
+    <>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
 
@@ -80,11 +79,10 @@ export default function Settings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
                     ? 'bg-teal-600 text-white'
                     : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
@@ -321,11 +319,10 @@ export default function Settings() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'light' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                      preferences.theme === 'light'
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'light'
                         ? 'border-teal-600 bg-teal-50'
                         : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className="text-center">
                       <div className="text-2xl mb-1">☀️</div>
@@ -334,11 +331,10 @@ export default function Settings() {
                   </button>
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                      preferences.theme === 'dark'
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'dark'
                         ? 'border-teal-600 bg-teal-50'
                         : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className="text-center">
                       <div className="text-2xl mb-1">🌙</div>
@@ -347,11 +343,10 @@ export default function Settings() {
                   </button>
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'auto' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                      preferences.theme === 'auto'
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'auto'
                         ? 'border-teal-600 bg-teal-50'
                         : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className="text-center">
                       <div className="text-2xl mb-1">🔄</div>
@@ -370,6 +365,6 @@ export default function Settings() {
           </Card>
         )}
       </div>
-    </Layout>
+    </>
   );
 }

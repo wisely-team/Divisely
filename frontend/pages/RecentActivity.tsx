@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Clock, DollarSign, Users, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
-import { Layout } from '../components/ui/Layout';
 import { Card } from '../components/UIComponents';
 
 interface Activity {
@@ -123,7 +122,7 @@ export default function RecentActivity() {
   };
 
   return (
-    <Layout>
+    <>
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -144,11 +143,10 @@ export default function RecentActivity() {
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id as any)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                filter === tab.id
+              className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${filter === tab.id
                   ? 'bg-teal-600 text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -207,11 +205,10 @@ export default function RecentActivity() {
                       {activity.amount && (
                         <div className="flex-shrink-0">
                           <div
-                            className={`px-3 py-1.5 rounded-lg font-semibold text-sm ${
-                              activity.type === 'payment'
+                            className={`px-3 py-1.5 rounded-lg font-semibold text-sm ${activity.type === 'payment'
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-red-100 text-red-700'
-                            }`}
+                              }`}
                           >
                             {activity.type === 'payment' ? '+' : '-'}$
                             {activity.amount.toFixed(2)}
@@ -235,6 +232,6 @@ export default function RecentActivity() {
           </div>
         )}
       </div>
-    </Layout>
+    </>
   );
 }

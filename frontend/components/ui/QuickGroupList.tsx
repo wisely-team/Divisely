@@ -40,7 +40,7 @@ export const QuickGroupList: React.FC<QuickGroupListProps> = ({
       {groups.map((group) => (
         <Link
           key={group.id}
-          to={`/groups/${group.id}`}
+          to={`/group/${group.id}`}
           onClick={onCloseSidebar}
           className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-teal-50 hover:text-teal-700 rounded-lg transition-colors group"
         >
