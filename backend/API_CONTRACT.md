@@ -85,7 +85,6 @@ Request:
 {
   "name": "Tatil Grubu",
   "description": "Antalya tatili için harcamalar",
-  "members": ["user_123", "user_456", "user_789"]
 }
 
 Response (201 Created):
@@ -101,11 +100,12 @@ Response (201 Created):
         "userId": "user_123",
         "displayName": "Ali Veli",
         "email": "ali@example.com"
-      },
+      }    
+    ],
+    "memberBalances": [
       {
-        "userId": "user_456",
-        "displayName": "Ayşe Yılmaz",
-        "email": "ayse@example.com"
+        "id": "user_123",
+        "balance": 0
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"
@@ -153,13 +153,21 @@ Response (200 OK):
         "userId": "user_123",
         "displayName": "Ali Veli",
         "email": "ali@example.com",
-        "balance": 450.00
       },
       {
         "userId": "user_456",
         "displayName": "Ayşe Yılmaz",
         "email": "ayse@example.com",
-        "balance": -200.00
+      }
+    ],
+    "memberBalances": [
+      {
+        "id": "user_123",
+        "balance": 0
+      },
+      {
+        "id": "user_456",
+        "balance": 0
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"
@@ -168,21 +176,11 @@ Response (200 OK):
 ```
 
 ## Expenses
-
-### 1. Create Expense (Harcama Ekle)
-```http
-POST /api/expenses
+```
+POST /api/add_expense
 Authorization: Bearer {accessToken}
 Content-Type: application/json
 
-Request (Equal Split):
-{
-  "groupId": "group_55",
-  "description": "Akşam Yemeği",
-  "amount": 1500.00,
-  "payerId": "user_123",
-  "splitType": "EQUAL",
-}
 
 Request (Custom Split):
 {
@@ -190,7 +188,7 @@ Request (Custom Split):
   "description": "Akşam Yemeği",
   "amount": 1500.00,
   "payerId": "user_123",
-  "splitType": "CUSTOM",
+"paid at": "2023-01-15T10:30:00Z"
   "splits": [
     { "userId": "user_123", "amount": 450.00 },
     { "userId": "user_456", "amount": 600.00 },
@@ -208,19 +206,16 @@ Response (201 Created):
     "amount": 1500.00,
     "payerId": "user_123",
     "payerName": "Ali Veli",
-    "splitType": "CUSTOM",
     "splits": [
       {
         "userId": "user_123",
         "displayName": "Ali Veli",
         "amount": 450.00,
-        "settled": false
       },
       {
         "userId": "user_456",
         "displayName": "Ayşe Yılmaz",
         "amount": 600.00,
-        "settled": false
       }
     ],
     "createdAt": "2024-01-15T10:30:00Z"
@@ -230,7 +225,7 @@ Response (201 Created):
 
 ### 2. Get Group Expenses
 ```http
-GET /api/groups/{groupId}/expenses
+GET /api/get_expenses/{groupId}
 Authorization: Bearer {accessToken}
 
 Response (200 OK):
@@ -243,8 +238,10 @@ Response (200 OK):
       "amount": 1500.00,
       "payerId": "user_123",
       "payerName": "Ali Veli",
-      "splitType": "CUSTOM",
-      "createdAt": "2024-01-15T10:30:00Z"
+      "my_share": 500,
+      "is_borrow": true,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "paidTime": "2024-01-15T10:30:00Z"
     }
   ]
 }
@@ -331,7 +328,9 @@ Request:
   "fromUserId": "user_456",
   "toUserId": "user_123",
   "amount": 500.00,
-  "note": "Akşam yemeği borcu"
+  "description": "Akşam yemeği borcu",
+  "settledAt": "2024-01-15T11:00:00Z",
+  "createdAt": "2024-01-15T11:00:00Z",
 }
 
 Response (201 Created):
@@ -346,6 +345,44 @@ Response (201 Created):
     "note": "Akşam yemeği borcu",
     "settledAt": "2024-01-15T11:00:00Z"
   }
+}
+```
+
+### 3. Get Settlements
+```http
+GET /api/settlements/{groupId}
+Authorization: Bearer {accessToken}
+
+Response (201 Created):
+
+
+{
+  "success": true,
+  "data": {
+    "groupId": "group_55",
+    
+    settlements:[{
+    "settlementId": "settle_111",
+    "fromUserId": "user_456",
+    "toUserId": "user_123",
+    "amount": 500.00,
+    "note": "Akşam yemeği borcu",
+    "settledAt": "2024-01-15T11:00:00Z"
+  }
+  ]
+  }
+}
+
+```
+### 4. Delete Settlement
+```http
+DELETE /api/settlement/{settlementId}
+Authorization: Bearer {accessToken}
+
+Response (200 OK):
+{
+  "success": true,
+  "message": "Settlement deleted successfully"
 }
 ```
 

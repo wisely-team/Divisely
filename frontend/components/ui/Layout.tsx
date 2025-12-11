@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wallet, PieChart, Users, LogOut, Menu, X } from 'lucide-react';
+import { Wallet, PieChart, Users, LogOut, Menu, X, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../UIComponents';
 
@@ -69,9 +69,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <PieChart className="w-5 h-5" />
           Dashboard
         </Link>
-        <div className="px-4 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
-          Groups
-        </div>
         <Link
           to="/dashboard"
           onClick={closeSidebar}
@@ -80,15 +77,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Users className="w-5 h-5" />
           My Groups
         </Link>
+        <Link
+          to="/profile"
+          onClick={closeSidebar}
+          className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+        >
+          <User className="w-5 h-5" />
+          Account
+        </Link>
       </nav>
 
       <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 mb-4 px-2">
-          <img
-            src={currentUser?.avatar}
-            alt=""
-            className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
-          />
+        <div className="flex items-start gap-3 mb-4 px-2">
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold text-gray-900 truncate">{currentUser?.name}</p>
             <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
