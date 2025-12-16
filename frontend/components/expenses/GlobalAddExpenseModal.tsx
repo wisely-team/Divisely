@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, ChevronRight, ArrowLeft, Search, Plus } from 'lucide-react';
 import { Modal } from '../UIComponents';
 import { AddExpenseModal } from './AddExpenseModal';
 import { useApp } from '../../context/AppContext';
 import type { Group, User } from '../../types';
+import { X } from 'lucide-react';
+import { groupService } from '../../services/groupService';
 
 interface GlobalAddExpenseModalProps {
     isOpen: boolean;
@@ -17,6 +19,8 @@ export const GlobalAddExpenseModal: React.FC<GlobalAddExpenseModalProps> = ({
     const { groups, currentUser, users, addExpense } = useApp();
     const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [groupUsers, setGroupUsers] = useState<User[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(false);
 
     // Filter groups based on search
     const filteredGroups = useMemo(() => {
@@ -28,21 +32,52 @@ export const GlobalAddExpenseModal: React.FC<GlobalAddExpenseModalProps> = ({
         );
     }, [groups, searchQuery]);
 
-    // Get users for selected group
-    const groupUsers: User[] = useMemo(() => {
-        if (!selectedGroup) return [];
-        return (users || []).filter(u => selectedGroup.members.includes(u.id));
-    }, [selectedGroup, users]);
+    // Fetch group details when a group is selected
+    useEffect(() => {
+        const fetchGroupMembers = async () => {
+            if (!selectedGroup) {
+                setGroupUsers([]);
+                return;
+            }
+
+            setLoadingMembers(true);
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                setLoadingMembers(false);
+                return;
+            }
+
+            try {
+                const details = await groupService.getGroupDetails(selectedGroup.id, token);
+                const normalizedMembers = (details.members || []).map(m => ({
+                    id: m.userId,
+                    name: m.displayName || m.email || 'Member',
+                    email: m.email || '',
+                    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.displayName || m.email || 'Member')}`
+                }));
+                setGroupUsers(normalizedMembers);
+            } catch (error) {
+                console.error('Failed to fetch group members:', error);
+                setGroupUsers([]);
+            } finally {
+                setLoadingMembers(false);
+            }
+        };
+
+        fetchGroupMembers();
+    }, [selectedGroup]);
 
     const handleClose = () => {
         setSelectedGroup(null);
         setSearchQuery('');
+        setGroupUsers([]);
         onClose();
     };
 
     const handleBack = () => {
         setSelectedGroup(null);
         setSearchQuery('');
+        setGroupUsers([]);
     };
 
     const handleAddExpense = async (expense: Parameters<typeof addExpense>[0]) => {
@@ -77,6 +112,12 @@ export const GlobalAddExpenseModal: React.FC<GlobalAddExpenseModalProps> = ({
                             <h2 className="text-xl font-bold text-gray-900">Add New Expense</h2>
                             <p className="text-gray-500 text-sm">Select a group to add an expense</p>
                         </div>
+                        <button
+                            onClick={handleClose}
+                            className="text-gray-400 hover:text-gray-600 right-0 ml-auto"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
 
