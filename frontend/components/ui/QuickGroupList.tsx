@@ -47,13 +47,13 @@ export const QuickGroupList: React.FC<QuickGroupListProps> = ({
           <Users className="w-4 h-4 text-gray-400 group-hover:text-teal-500" />
           <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
 
-          {/* Notification Badge */}
-          {group.unreadCount && group.unreadCount > 0 && (
-            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
-              {group.unreadCount > 9 ? '9+' : group.unreadCount}
+          {/* Member Count */}
+          {group.memberCount !== undefined && group.memberCount > 0 && (
+            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+              {group.memberCount}
             </span>
           )}
-
+          
           <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-teal-500" />
         </Link>
       ))}

@@ -29,7 +29,7 @@ export interface Expense {
   date: string;
   createdAt?: string;
   splits: Split[];
-  splitType: 'EQUAL' | 'CUSTOM';
+  splitType: 'EQUAL' | 'CUSTOM' | 'PERCENTAGE';
   myShare?: number;
   isBorrow?: boolean;
 }
@@ -55,6 +55,7 @@ export interface Settlement {
 export interface GroupSummary {
   id: string;
   name: string;
+  memberCount?: number; // Number of members in the group
   unreadCount?: number; // Number of new expenses/activities
   lastActivity?: string;
 }

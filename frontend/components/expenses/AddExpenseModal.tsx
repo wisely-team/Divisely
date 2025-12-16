@@ -10,6 +10,7 @@ interface ParticipantState {
   userId: string;
   isChecked: boolean;
   shareAmount: number;
+  sharePercentage: number;
 }
 
 interface AddExpenseModalProps {
@@ -33,7 +34,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [expDate, setExpDate] = useState(new Date().toISOString().split('T')[0]);
   const [expDesc, setExpDesc] = useState('');
   const [expPayer, setExpPayer] = useState(currentUserId);
-  const [expSplitType, setExpSplitType] = useState<'EQUAL' | 'CUSTOM'>('EQUAL');
+  const [expSplitType, setExpSplitType] = useState<'EQUAL' | 'CUSTOM' | 'PERCENTAGE'>('EQUAL');
   const [isAllSelected, setIsAllSelected] = useState(true);
   const [expParticipants, setExpParticipants] = useState<ParticipantState[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -53,7 +54,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       const initialParticipants = groupUsers.map(u => ({
         userId: u.id,
         isChecked: true,
-        shareAmount: 0
+        shareAmount: 0,
+        sharePercentage: 0
       }));
       setExpParticipants(initialParticipants);
       setIsAllSelected(true);
@@ -142,6 +144,24 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     });
   }, [expAmount, expSplitType, isOpen]);
 
+  // Percentage Split Logic - Recalculate amounts when percentages or total changes
+  useEffect(() => {
+    if (!isOpen) return;
+    if (expSplitType !== 'PERCENTAGE') return;
+    if (!expAmount) return;
+
+    const total = parseFloat(expAmount);
+    if (isNaN(total) || total <= 0) return;
+
+    setExpParticipants(prev => {
+      return prev.map(p => {
+        if (!p.isChecked) return { ...p, shareAmount: 0 };
+        const amount = (total * p.sharePercentage) / 100;
+        return { ...p, shareAmount: amount };
+      });
+    });
+  }, [expAmount, expSplitType, isOpen, participantSelectionKey]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const total = parseFloat(expAmount);
@@ -170,6 +190,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       }
     }
 
+    // Validate Percentage Split Sum
+    if (expSplitType === 'PERCENTAGE') {
+      const totalPercentage = activeParticipants.reduce((sum, p) => sum + (p.sharePercentage || 0), 0);
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert(`The percentages must add up to 100%. Currently: ${totalPercentage.toFixed(2)}%`);
+        return;
+      }
+    }
+
     const splits: Split[] = activeParticipants.map(p => ({
       userId: p.userId,
       amount: p.shareAmount
@@ -194,7 +223,9 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
   const currentSplitSum = expParticipants.filter(p => p.isChecked).reduce((sum, p) => sum + (p.shareAmount || 0), 0);
   const remainingAmount = (parseFloat(expAmount) || 0) - currentSplitSum;
+  const currentPercentageSum = expParticipants.filter(p => p.isChecked).reduce((sum, p) => sum + (p.sharePercentage || 0), 0);
   const isCustomInvalid = expSplitType === 'CUSTOM' && Math.abs(remainingAmount) > 0.01;
+  const isPercentageInvalid = expSplitType === 'PERCENTAGE' && Math.abs(currentPercentageSum - 100) > 0.01;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="" className="max-w-2xl p-0">
@@ -380,7 +411,13 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               >
                 By Amount
               </button>
-              <button type="button" disabled className="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-300 cursor-not-allowed">
+              <button
+                type="button"
+                onClick={() => setExpSplitType('PERCENTAGE')}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  expSplitType === 'PERCENTAGE' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
                 By Percentage
               </button>
             </div>
@@ -419,6 +456,59 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                 })}
             </div>
           )}
+
+          {/* Percentage Input Area */}
+          {expSplitType === 'PERCENTAGE' && (
+            <div className="space-y-2 mt-4 animate-in fade-in slide-in-from-top-2">
+              {expParticipants
+                .filter(p => p.isChecked)
+                .map(p => {
+                  const user = groupUsers.find(u => u.id === p.userId);
+                  const realIndex = expParticipants.findIndex(x => x.userId === p.userId);
+                  return (
+                    <div key={p.userId} className="flex items-center justify-between gap-4">
+                      <label className="text-sm text-gray-600 flex-1 truncate">{user?.name}</label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-24">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={p.sharePercentage || ''}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setExpParticipants(prev => {
+                                const newArr = [...prev];
+                                const total = parseFloat(expAmount) || 0;
+                                const amount = (total * val) / 100;
+                                newArr[realIndex] = { ...newArr[realIndex], sharePercentage: val, shareAmount: amount };
+                                return newArr;
+                              });
+                            }}
+                            className="w-full pl-3 pr-7 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                        </div>
+                        <span className="text-sm text-gray-500 w-20 text-right">${(p.shareAmount || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-sm font-medium">
+                <span className="text-gray-700">Total</span>
+                <div className="flex items-center gap-2">
+                  <span className={`w-24 text-right ${
+                    Math.abs(expParticipants.filter(p => p.isChecked).reduce((sum, p) => sum + (p.sharePercentage || 0), 0) - 100) > 0.01
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}>
+                    {expParticipants.filter(p => p.isChecked).reduce((sum, p) => sum + (p.sharePercentage || 0), 0).toFixed(2)}%
+                  </span>
+                  <span className="text-gray-900 w-20 text-right">${currentSplitSum.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
           </form>
@@ -429,11 +519,11 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           {/* Footer Info */}
           <div
             className={`p-4 rounded-lg flex items-center justify-between ${
-              isCustomInvalid ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
+              isCustomInvalid || isPercentageInvalid ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
             }`}
           >
             <div className="flex items-center gap-2">
-              {isCustomInvalid ? (
+              {isCustomInvalid || isPercentageInvalid ? (
                 <AlertTriangle className="w-5 h-5" />
               ) : (
                 <div className="bg-blue-200 p-0.5 rounded-full">
@@ -443,6 +533,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <span className="font-medium text-sm">
                 {isCustomInvalid
                   ? `Total split ($${currentSplitSum.toFixed(2)}) does not match expense ($${(parseFloat(expAmount) || 0).toFixed(2)})`
+                  : isPercentageInvalid
+                  ? `Total percentage (${currentPercentageSum.toFixed(0)}%) must equal 100%`
                   : 'Total split matches expense total'}
               </span>
             </div>
@@ -457,7 +549,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             <Button
               type="submit"
               form="add-expense-form"
-              disabled={isCustomInvalid}
+              disabled={isCustomInvalid || isPercentageInvalid}
               className="bg-teal-600 hover:bg-teal-700 text-white min-w-[120px]"
             >
               Add Expense

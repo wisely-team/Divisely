@@ -425,14 +425,37 @@ async function joinGroup(req, res) {
             ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
             : false;
 
-        if (!isMember) {
-            group.members.push(requesterId);
-            const hasBalance = (group.memberBalances || []).some(b => b?.id?.toString() === requesterId);
-            if (!hasBalance) {
-                group.memberBalances.push({ id: requesterId, balance: 0 });
-            }
-            await group.save();
+        if (isMember) {
+            // User is already a member, return success with current group data
+            const responseMembers = (group.members || []).map(member => ({
+                userId: (member?._id || member)?.toString(),
+                displayName: member.displayName || member.email,
+                email: member.email
+            }));
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    groupId: group._id.toString(),
+                    name: group.name,
+                    description: group.description,
+                    members: responseMembers,
+                    memberCount: responseMembers.length
+                },
+                message: "already_member"
+            });
         }
+
+        // Add new member - ensure no duplicates using Set
+        const memberSet = new Set(group.members.map(m => (m?._id || m)?.toString()));
+        memberSet.add(requesterId);
+        group.members = Array.from(memberSet);
+        
+        const hasBalance = (group.memberBalances || []).some(b => b?.id?.toString() === requesterId);
+        if (!hasBalance) {
+            group.memberBalances.push({ id: requesterId, balance: 0 });
+        }
+        await group.save();
 
         const isMemberInGroup = Array.isArray(group.members)
             ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
@@ -492,7 +515,13 @@ async function removeMember(req, res) {
         }
 
         const beforeCount = group.members.length;
-        group.members = group.members.filter(m => m.toString() !== userId);
+        // Remove all instances and deduplicate
+        const memberSet = new Set(
+            group.members
+                .map(m => m.toString())
+                .filter(id => id !== userId)
+        );
+        group.members = Array.from(memberSet);
         // group.memberBalances = (group.memberBalances || []).filter(b => b.id?.toString() !== userId);
 
         if (group.members.length === beforeCount) {

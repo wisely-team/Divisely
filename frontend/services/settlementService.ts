@@ -1,3 +1,5 @@
+import { fetchWithTokenRefresh } from '../utils/tokenRefresh';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 interface SettleUpPayload {
@@ -34,7 +36,7 @@ export const settlementService = {
     const settledAt = payload.date ? new Date(payload.date).toISOString() : undefined;
     const createdAt = new Date().toISOString();
 
-    const response = await fetch(`${API_BASE_URL}/settlements`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/settlements`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,7 +57,7 @@ export const settlementService = {
   },
 
   async getSettlements(groupId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/settlements/${groupId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/settlements/${groupId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -66,7 +68,7 @@ export const settlementService = {
   },
 
   async deleteSettlement(settlementId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/settlement/${settlementId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/settlement/${settlementId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`

@@ -1,3 +1,5 @@
+import { fetchWithTokenRefresh } from '../utils/tokenRefresh';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export interface UpdateProfilePayload {
@@ -25,7 +27,7 @@ const handleResponse = async <T>(response: Response, defaultError: string): Prom
 
 export const userService = {
   async getProfile(accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/users/me`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/users/me`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -36,7 +38,7 @@ export const userService = {
   },
 
   async updateProfile(payload: UpdateProfilePayload, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/users/me`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/users/me`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

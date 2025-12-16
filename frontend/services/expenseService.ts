@@ -1,3 +1,5 @@
+import { fetchWithTokenRefresh } from '../utils/tokenRefresh';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 interface AddExpensePayload {
@@ -45,7 +47,7 @@ export const expenseService = {
   async addExpense(payload: AddExpensePayload, accessToken: string) {
     const paidAt = payload.date ? new Date(payload.date).toISOString() : undefined;
 
-    const response = await fetch(`${API_BASE_URL}/add_expense`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/add_expense`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +70,7 @@ export const expenseService = {
   },
 
   async getGroupExpenses(groupId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/get_expenses/${groupId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/get_expenses/${groupId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -79,7 +81,7 @@ export const expenseService = {
   },
 
   async deleteExpense(expenseId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/expenses/${expenseId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/expenses/${expenseId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`

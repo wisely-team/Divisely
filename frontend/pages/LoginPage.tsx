@@ -10,7 +10,13 @@ export const LoginPage = () => {
 
   const handleSubmit = async (email: string, password: string) => {
     await login(email, password);
-    navigate('/dashboard');
+    const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+    if (redirectPath) {
+      sessionStorage.removeItem('redirectAfterLogin');
+      navigate(redirectPath);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (

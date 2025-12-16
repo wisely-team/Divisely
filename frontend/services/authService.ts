@@ -65,5 +65,17 @@ export const authService = {
     });
 
     return handleResponse<{ message: string }>(response, "forgot_password_failed");
+  },
+
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    return handleResponse<{ accessToken: string; refreshToken: string }>(response, "refresh_token_failed");
   }
 };

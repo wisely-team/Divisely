@@ -175,4 +175,58 @@ async function forgotPassword(req, res) {
     }
 }
 
-module.exports = { register, login, logout, forgotPassword };
+async function refreshToken(req, res) {
+    try {
+        const { refreshToken } = req.body || {};
+
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                error: "missing_refresh_token"
+            });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+        } catch (verifyError) {
+            return res.status(401).json({
+                success: false,
+                error: "invalid_refresh_token"
+            });
+        }
+
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                error: "user_not_found"
+            });
+        }
+
+        const payload = {
+            userId: user._id.toString(),
+            username: user.displayName
+        };
+
+        const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+        const newRefreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+                expiresIn: 3600
+            }
+        });
+    } catch (error) {
+        console.error("Refresh token error:", error);
+        return res.status(500).json({
+            success: false,
+            error: "server_error"
+        });
+    }
+}
+
+module.exports = { register, login, logout, forgotPassword, refreshToken };

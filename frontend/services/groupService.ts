@@ -1,3 +1,5 @@
+import { fetchWithTokenRefresh } from '../utils/tokenRefresh';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 interface CreateGroupResponse {
@@ -24,7 +26,7 @@ const handleResponse = async <T>(response: Response, defaultError: string): Prom
 
 export const groupService = {
   async createGroup(name: string, description: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,7 +39,7 @@ export const groupService = {
   },
 
   async getGroups(accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -58,7 +60,7 @@ export const groupService = {
   },
 
   async getGroupDetails(groupId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -80,7 +82,7 @@ export const groupService = {
   },
 
   async joinGroup(groupId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups/${groupId}/join`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}/join`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -97,7 +99,7 @@ export const groupService = {
   },
 
   async updateGroup(groupId: string, updates: { name?: string; description?: string }, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +111,7 @@ export const groupService = {
   },
 
   async deleteGroup(groupId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -119,7 +121,7 @@ export const groupService = {
   },
 
   async removeMember(groupId: string, userId: string, accessToken: string) {
-    const response = await fetch(`${API_BASE_URL}/groups/${groupId}/members/${userId}`, {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}/members/${userId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`

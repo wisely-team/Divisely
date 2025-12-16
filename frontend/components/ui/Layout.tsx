@@ -27,6 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return (groups || []).map(group => ({
       id: group.id,
       name: group.name,
+      memberCount: group.members?.length || 0,
       unreadCount: 0, // TODO: Get from API
       lastActivity: group.created_at
     }));

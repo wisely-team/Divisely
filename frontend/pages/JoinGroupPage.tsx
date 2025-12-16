@@ -7,20 +7,35 @@ export const JoinGroupPage: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { currentUser, joinGroup } = useApp();
-  const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
-  const [message, setMessage] = useState<string>('Joining group...');
+  const [status, setStatus] = useState<'loading' | 'pending' | 'success' | 'error'>('loading');
+  const [message, setMessage] = useState<string>('Checking authentication...');
+  const hasJoinedRef = React.useRef(false);
 
   useEffect(() => {
     const runJoin = async () => {
+      if (hasJoinedRef.current) return;
+      
       if (!groupId) {
         setStatus('error');
         setMessage('Invalid invite link.');
         return;
       }
-      if (!currentUser) {
+
+      // Wait a moment for auth to load from localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const token = localStorage.getItem('accessToken');
+      if (!currentUser || !token) {
+        // Store the intended destination and redirect to login
+        sessionStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
         navigate('/login');
         return;
       }
+
+      hasJoinedRef.current = true;
+      setStatus('pending');
+      setMessage('Joining group...');
+      
       try {
         await joinGroup(groupId);
         setStatus('success');
