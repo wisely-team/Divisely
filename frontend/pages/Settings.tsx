@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { User, Mail, Lock, Bell, Globe, Palette } from 'lucide-react';
+import { User, Mail, Lock, Bell } from 'lucide-react';
 import { Card, Button, Input } from '../components/UIComponents';
 import { useApp } from '../context/AppContext';
 
 export default function Settings() {
   const { currentUser } = useApp();
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications' | 'preferences'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications'>('profile');
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -28,13 +28,6 @@ export default function Settings() {
     pushNotifications: true,
   });
 
-  // Preferences state
-  const [preferences, setPreferences] = useState({
-    language: 'en',
-    currency: 'USD',
-    theme: 'light',
-  });
-
   const handleProfileSave = () => {
     // TODO: Implement profile update API call
     console.log('Saving profile:', profileForm);
@@ -54,16 +47,10 @@ export default function Settings() {
     console.log('Saving notifications:', notifications);
   };
 
-  const handlePreferencesSave = () => {
-    // TODO: Implement preferences update API call
-    console.log('Saving preferences:', preferences);
-  };
-
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'account', label: 'Account', icon: Lock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'preferences', label: 'Preferences', icon: Globe },
   ];
 
   return (
@@ -267,100 +254,6 @@ export default function Settings() {
 
               <div className="pt-4">
                 <Button onClick={handleNotificationsSave}>
-                  Save Preferences
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Preferences Tab */}
-        {activeTab === 'preferences' && (
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">App Preferences</h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Globe className="w-4 h-4 inline mr-2" />
-                  Language
-                </label>
-                <select
-                  value={preferences.language}
-                  onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-colors"
-                >
-                  <option value="en">English</option>
-                  <option value="tr">Türkçe</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Default Currency
-                </label>
-                <select
-                  value={preferences.currency}
-                  onChange={(e) => setPreferences({ ...preferences, currency: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-colors"
-                >
-                  <option value="USD">USD - US Dollar</option>
-                  <option value="EUR">EUR - Euro</option>
-                  <option value="GBP">GBP - British Pound</option>
-                  <option value="TRY">TRY - Turkish Lira</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Palette className="w-4 h-4 inline mr-2" />
-                  Theme
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setPreferences({ ...preferences, theme: 'light' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'light'
-                      ? 'border-teal-600 bg-teal-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">☀️</div>
-                      <div className="text-sm font-medium">Light</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'dark'
-                      ? 'border-teal-600 bg-teal-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">🌙</div>
-                      <div className="text-sm font-medium">Dark</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setPreferences({ ...preferences, theme: 'auto' })}
-                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'auto'
-                      ? 'border-teal-600 bg-teal-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">🔄</div>
-                      <div className="text-sm font-medium">Auto</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <Button onClick={handlePreferencesSave}>
                   Save Preferences
                 </Button>
               </div>
