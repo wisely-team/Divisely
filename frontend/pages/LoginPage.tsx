@@ -22,9 +22,9 @@ export const LoginPage = () => {
   const handleLoginSubmit = async (email: string, password: string) => {
     try {
       await login(email, password);
-      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
-        sessionStorage.removeItem('redirectAfterLogin');
+        localStorage.removeItem('redirectAfterLogin');
         navigate(redirectPath);
       } else {
         navigate('/dashboard');
@@ -58,9 +58,9 @@ export const LoginPage = () => {
       setPendingPassword('');
       setVerificationCode('');
       // Redirect to dashboard
-      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
-        sessionStorage.removeItem('redirectAfterLogin');
+        localStorage.removeItem('redirectAfterLogin');
         navigate(redirectPath);
       } else {
         navigate('/dashboard');
