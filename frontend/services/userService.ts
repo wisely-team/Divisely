@@ -3,7 +3,7 @@ import { fetchWithTokenRefresh } from '../utils/tokenRefresh';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export interface UpdateProfilePayload {
-  displayName?: string;
+  username?: string;
   email?: string;
   currentPassword?: string;
   newPassword?: string;
@@ -12,7 +12,7 @@ export interface UpdateProfilePayload {
 export interface UserProfileResponse {
   userId: string;
   email: string;
-  displayName: string;
+  username: string;
   updatedAt?: string;
 }
 

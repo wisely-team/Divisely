@@ -11,6 +11,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
   const { addGroup } = useApp();
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,9 +27,10 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
     setIsSubmitting(true);
     setError(null);
     try {
-      await addGroup(groupName, groupDescription);
+      await addGroup(groupName, groupDescription, displayName);
       setGroupName('');
       setGroupDescription('');
+      setDisplayName('');
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create group';
@@ -57,6 +59,13 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
           required
           disabled={isSubmitting}
         />
+        <Input
+          label="Your Name in This Group"
+          value={displayName}
+          onChange={e => setDisplayName(e.target.value)}
+          placeholder="e.g. John"
+          disabled={isSubmitting}
+        />
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
         <div className="flex justify-end gap-2 mt-6">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
@@ -70,3 +79,4 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
     </Modal>
   );
 };
+

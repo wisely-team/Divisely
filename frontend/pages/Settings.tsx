@@ -80,8 +80,8 @@ export default function Settings() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                   }`}
               >
                 <Icon className="w-4 h-4" />
@@ -113,20 +113,23 @@ export default function Settings() {
 
             <div className="space-y-4">
               <Input
-                label="Display Name"
+                label="Username"
                 type="text"
                 value={profileForm.name}
                 onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                placeholder="Your name"
+                placeholder="Your username"
               />
 
               <Input
                 label="Email Address"
                 type="email"
                 value={profileForm.email}
-                onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                onChange={() => { }}
                 placeholder="your.email@example.com"
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
               />
+              <p className="text-xs text-gray-500 -mt-2">Email address cannot be changed.</p>
 
               <div className="pt-4">
                 <Button onClick={handleProfileSave}>
@@ -320,8 +323,8 @@ export default function Settings() {
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'light' })}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'light'
-                        ? 'border-teal-600 bg-teal-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      ? 'border-teal-600 bg-teal-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
                     <div className="text-center">
@@ -332,8 +335,8 @@ export default function Settings() {
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'dark'
-                        ? 'border-teal-600 bg-teal-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      ? 'border-teal-600 bg-teal-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
                     <div className="text-center">
@@ -344,8 +347,8 @@ export default function Settings() {
                   <button
                     onClick={() => setPreferences({ ...preferences, theme: 'auto' })}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${preferences.theme === 'auto'
-                        ? 'border-teal-600 bg-teal-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      ? 'border-teal-600 bg-teal-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
                     <div className="text-center">

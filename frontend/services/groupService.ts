@@ -9,6 +9,7 @@ interface CreateGroupResponse {
   createdBy: string;
   members: Array<{
     userId: string;
+    username?: string;
     displayName?: string;
     email?: string;
   }>;
@@ -25,14 +26,14 @@ const handleResponse = async <T>(response: Response, defaultError: string): Prom
 };
 
 export const groupService = {
-  async createGroup(name: string, description: string, accessToken: string) {
+  async createGroup(name: string, description: string, displayName: string, accessToken: string) {
     const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify({ name, description })
+      body: JSON.stringify({ name, description, displayName })
     });
 
     return handleResponse<CreateGroupResponse>(response, 'create_group_failed');
@@ -74,6 +75,7 @@ export const groupService = {
       createdBy?: string;
       members: Array<{
         userId: string;
+        username?: string;
         displayName?: string;
         email?: string;
       }>;
@@ -81,19 +83,21 @@ export const groupService = {
     }>(response, 'fetch_group_details_failed');
   },
 
-  async joinGroup(groupId: string, accessToken: string) {
+  async joinGroup(groupId: string, displayName: string, accessToken: string) {
     const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}/join`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
-      }
+      },
+      body: JSON.stringify({ displayName })
     });
 
     return handleResponse<{
       groupId: string;
       name: string;
       description?: string;
-      members?: Array<{ userId: string; displayName?: string; email?: string }>;
+      members?: Array<{ userId: string; username?: string; displayName?: string; email?: string }>;
       memberCount?: number;
     }>(response, 'join_group_failed');
   },
@@ -128,5 +132,17 @@ export const groupService = {
       }
     });
     return handleResponse<void>(response, 'remove_member_failed');
+  },
+
+  async updateMyDisplayName(groupId: string, displayName: string, accessToken: string) {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/groups/${groupId}/my-display-name`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ displayName })
+    });
+    return handleResponse<{ groupId: string; displayName: string }>(response, 'update_display_name_failed');
   }
 };

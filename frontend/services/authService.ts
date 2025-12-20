@@ -6,7 +6,7 @@ export interface LoginResponse {
   user: {
     userId: string;
     email: string;
-    displayName: string;
+    username: string;
   };
 }
 
@@ -29,7 +29,7 @@ export const authService = {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await handleResponse<{ accessToken: string; refreshToken: string; user: { userId: string; email: string; displayName: string } }>(
+    const data = await handleResponse<{ accessToken: string; refreshToken: string; user: { userId: string; email: string; username: string } }>(
       response,
       "login_failed"
     );
@@ -40,16 +40,16 @@ export const authService = {
     };
   },
 
-  async register(email: string, password: string, displayName: string) {
+  async register(email: string, password: string, username: string) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ email, password, displayName })
+      body: JSON.stringify({ email, password, username })
     });
 
-    return handleResponse<{ userId: string; email: string; displayName: string; createdAt: string }>(
+    return handleResponse<{ userId: string; email: string; username: string; createdAt: string }>(
       response,
       "register_failed"
     );

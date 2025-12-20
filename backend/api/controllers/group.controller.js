@@ -10,11 +10,10 @@ async function createGroup(req, res) {
         console.log("ownerId:", ownerId);
         console.log("Request body:", req.body);
         console.log("name:", req.body?.name);
-        //console.log("Request headers:", req.headers);
 
         const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
         const description = typeof req.body?.description === "string" ? req.body.description.trim() : "";
-        const members = Array.isArray(req.body?.members) ? req.body.members : [];
+        const ownerDisplayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
 
         if (!ownerId) {
             return res.status(401).json({
@@ -26,12 +25,12 @@ async function createGroup(req, res) {
         if (!name) {
             return res.status(400).json({
                 success: false,
-                error: "missing_fieldscvx",
+                error: "missing_fields",
                 message: "Group name is required"
             });
         }
 
-        const owner = await User.findById(ownerId).select("displayName email");
+        const owner = await User.findById(ownerId).select("username email");
         if (!owner) {
             return res.status(401).json({
                 success: false,
@@ -39,30 +38,33 @@ async function createGroup(req, res) {
             });
         }
 
-        const validMemberIds = members
-            .filter(id => typeof id === "string" && mongoose.Types.ObjectId.isValid(id));
+        // Use provided displayName or fallback to username
+        const finalDisplayName = ownerDisplayName || owner.username;
 
-        // Ensure owner is part of the group members
-        const uniqueMemberIds = Array.from(new Set([ownerId, ...validMemberIds]));
+        // Create members array with embedded structure
+        const members = [{
+            user: owner._id,
+            displayName: finalDisplayName
+        }];
 
-        const memberUsers = await User.find({ _id: { $in: uniqueMemberIds } }).select("displayName email");
-        const memberBalances = memberUsers.map(u => ({ id: u._id, balance: 0 }));
+        const memberBalances = [{ userId: owner._id, balance: 0 }];
 
         const group = await Group.create({
             name,
             description,
             owner: owner._id,
-            members: memberUsers.map(u => u._id),
+            members,
             memberBalances
         });
 
-        const responseMembers = memberUsers.map(u => ({
-            userId: u._id.toString(),
-            displayName: u.displayName,
-            email: u.email
+        const responseMembers = members.map(m => ({
+            userId: m.user.toString(),
+            username: owner.username,
+            displayName: m.displayName,
+            email: owner.email
         }));
         const responseMemberBalances = memberBalances.map(mb => ({
-            id: mb.id.toString(),
+            userId: mb.userId.toString(),
             balance: mb.balance
         }));
 
@@ -98,8 +100,9 @@ async function getUserGroups(req, res) {
             });
         }
 
-        const groups = await Group.find({ members: userId })
-            .populate("members", "displayName email")
+        // Query groups where any member.user matches the userId
+        const groups = await Group.find({ "members.user": userId })
+            .populate("members.user", "username email")
             .sort({ updatedAt: -1 })
             .lean();
 
@@ -109,12 +112,13 @@ async function getUserGroups(req, res) {
             description: group.description,
             memberCount: Array.isArray(group.members) ? group.members.length : 0,
             members: (group.members || []).map(member => ({
-                userId: member._id.toString(),
+                userId: member.user?._id?.toString() || member.user?.toString(),
+                username: member.user?.username,
                 displayName: member.displayName,
-                email: member.email
+                email: member.user?.email
             })),
-            totalExpenses: 0, // TODO: Replace with real expense sum when expense model exists
-            yourBalance: (group.memberBalances || []).find(b => b?.id?.toString() === userId)?.balance || 0,
+            totalExpenses: 0,
+            yourBalance: (group.memberBalances || []).find(b => b?.userId?.toString() === userId)?.balance || 0,
             lastActivity: (group.updatedAt || group.createdAt)?.toISOString()
         }));
 
@@ -131,6 +135,7 @@ async function getUserGroups(req, res) {
     }
 }
 
+
 async function getGroupDetails(req, res) {
     try {
         const requesterId = req.user?.userId;
@@ -145,7 +150,7 @@ async function getGroupDetails(req, res) {
         }
 
         const group = await Group.findById(groupId)
-            .populate("members", "displayName email")
+            .populate("members.user", "username email")
             .populate("owner", "_id")
             .lean();
 
@@ -154,7 +159,7 @@ async function getGroupDetails(req, res) {
         }
 
         const isMember = Array.isArray(group.members)
-            ? group.members.some(m => m?._id?.toString() === requesterId)
+            ? group.members.some(m => (m?.user?._id || m?.user)?.toString() === requesterId)
             : false;
         const isOwner = group.owner?._id?.toString() === requesterId;
 
@@ -163,12 +168,13 @@ async function getGroupDetails(req, res) {
         }
 
         const responseMembers = (group.members || []).map(member => ({
-            userId: member._id.toString(),
+            userId: (member.user?._id || member.user)?.toString(),
+            username: member.user?.username,
             displayName: member.displayName,
-            email: member.email
+            email: member.user?.email
         }));
         const responseMemberBalances = (group.memberBalances || []).map(mb => ({
-            id: mb.id?.toString(),
+            userId: mb.userId?.toString(),
             balance: mb.balance
         }));
 
@@ -203,20 +209,36 @@ async function getGroupBalances(req, res) {
             return res.status(400).json({ success: false, error: "invalid_group_id" });
         }
 
-        const group = await Group.findById(groupId).select("members memberBalances").lean();
+        const group = await Group.findById(groupId)
+            .populate("members.user", "username email")
+            .select("members memberBalances")
+            .lean();
         if (!group) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
-        const memberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        // Extract member user IDs from embedded structure
+        const memberIds = Array.isArray(group.members)
+            ? group.members.map(m => (m.user?._id || m.user)?.toString())
+            : [];
         if (!memberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to view this group's balances" });
         }
 
+        // Build a map of userId -> { username, displayName }
+        const memberInfoMap = new Map();
+        (group.members || []).forEach(m => {
+            const uid = (m.user?._id || m.user)?.toString();
+            memberInfoMap.set(uid, {
+                username: m.user?.username,
+                displayName: m.displayName
+            });
+        });
+
         const balancesMap = new Map();
         (group.memberBalances || []).forEach(entry => {
-            if (!entry?.id) return;
-            balancesMap.set(entry.id.toString(), Number(entry.balance) || 0);
+            if (!entry?.userId) return;
+            balancesMap.set(entry.userId.toString(), Number(entry.balance) || 0);
         });
 
         memberIds.forEach(id => {
@@ -259,21 +281,17 @@ async function getGroupBalances(req, res) {
             });
 
             creditor.amount -= payAmount;
-            debtor.amount += payAmount; // debtor.amount is negative
+            debtor.amount += payAmount;
 
             if (creditor.amount <= 0.009) i++;
             if (debtor.amount >= -0.009) j++;
         }
 
-        const userDocs = await User.find({ _id: { $in: memberIds } }).select("displayName email").lean();
-        const getName = (userId) => {
-            const user = userDocs.find(u => u._id.toString() === userId);
-            return user?.displayName || user?.email || "Unknown";
-        };
+        const getInfo = (userId) => memberInfoMap.get(userId) || { username: "Unknown", displayName: "Unknown" };
 
         const responseSimplified = simplifiedDebts.map(item => ({
-            from: { userId: item.from, displayName: getName(item.from) },
-            to: { userId: item.to, displayName: getName(item.to) },
+            from: { userId: item.from, username: getInfo(item.from).username, displayName: getInfo(item.from).displayName },
+            to: { userId: item.to, username: getInfo(item.to).username, displayName: getInfo(item.to).displayName },
             amount: item.amount
         }));
 
@@ -284,7 +302,8 @@ async function getGroupBalances(req, res) {
             })
             .map(([userId, balance]) => ({
                 userId,
-                displayName: getName(userId),
+                username: getInfo(userId).username,
+                displayName: getInfo(userId).displayName,
                 balance: Math.round(balance * 100) / 100
             }));
 
@@ -301,6 +320,7 @@ async function getGroupBalances(req, res) {
         return res.status(500).json({ success: false, error: "server_error" });
     }
 }
+
 
 async function updateGroup(req, res) {
     try {
@@ -381,7 +401,7 @@ async function deleteGroup(req, res) {
         }
 
         await Group.deleteOne({ _id: groupId });
-        
+
         const expenses = await Expense.find({ group: groupId }).select("_id").lean();
         const expenseIds = expenses.map(e => e._id);
         await Expense.deleteMany({ _id: { $in: expenseIds } });
@@ -407,6 +427,7 @@ async function joinGroup(req, res) {
     try {
         const requesterId = req.user?.userId;
         const { groupId } = req.params;
+        const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
 
         if (!requesterId) {
             return res.status(401).json({ success: false, error: "unauthorized" });
@@ -416,21 +437,23 @@ async function joinGroup(req, res) {
             return res.status(400).json({ success: false, error: "invalid_group_id" });
         }
 
-        const group = await Group.findById(groupId).populate("members", "displayName email");
+        const group = await Group.findById(groupId).populate("members.user", "username email");
         if (!group) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
+        // Check if already a member
         const isMember = Array.isArray(group.members)
-            ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
+            ? group.members.some(m => (m?.user?._id || m?.user)?.toString() === requesterId)
             : false;
 
         if (isMember) {
             // User is already a member, return success with current group data
             const responseMembers = (group.members || []).map(member => ({
-                userId: (member?._id || member)?.toString(),
-                displayName: member.displayName || member.email,
-                email: member.email
+                userId: (member.user?._id || member.user)?.toString(),
+                username: member.user?.username,
+                displayName: member.displayName,
+                email: member.user?.email
             }));
 
             return res.status(200).json({
@@ -446,28 +469,35 @@ async function joinGroup(req, res) {
             });
         }
 
-        // Add new member - ensure no duplicates using Set
-        const memberSet = new Set(group.members.map(m => (m?._id || m)?.toString()));
-        memberSet.add(requesterId);
-        group.members = Array.from(memberSet);
-        
-        const hasBalance = (group.memberBalances || []).some(b => b?.id?.toString() === requesterId);
+        // Get user info for the joining user
+        const joiningUser = await User.findById(requesterId).select("username email");
+        if (!joiningUser) {
+            return res.status(404).json({ success: false, error: "user_not_found" });
+        }
+
+        // Use provided displayName or fallback to username
+        const finalDisplayName = displayName || joiningUser.username;
+
+        // Add new member with embedded structure
+        group.members.push({
+            user: requesterId,
+            displayName: finalDisplayName
+        });
+
+        const hasBalance = (group.memberBalances || []).some(b => b?.userId?.toString() === requesterId);
         if (!hasBalance) {
-            group.memberBalances.push({ id: requesterId, balance: 0 });
+            group.memberBalances.push({ userId: requesterId, balance: 0 });
         }
         await group.save();
 
-        const isMemberInGroup = Array.isArray(group.members)
-            ? group.members.some(m => (m?._id || m)?.toString() === requesterId)
-            : false;
-        if (!isMemberInGroup) {
-            return res.status(500).json({ success: false, error: "failed_to_add_member" });
-        }
+        // Re-populate to get full user info
+        await group.populate("members.user", "username email");
 
         const responseMembers = (group.members || []).map(member => ({
-            userId: (member?._id || member)?.toString(),
-            displayName: member.displayName || member.email,
-            email: member.email
+            userId: (member.user?._id || member.user)?.toString(),
+            username: member.user?.username,
+            displayName: member.displayName,
+            email: member.user?.email
         }));
 
         return res.status(200).json({
@@ -485,6 +515,7 @@ async function joinGroup(req, res) {
         return res.status(500).json({ success: false, error: "server_error" });
     }
 }
+
 
 async function removeMember(req, res) {
     try {
@@ -515,14 +546,11 @@ async function removeMember(req, res) {
         }
 
         const beforeCount = group.members.length;
-        // Remove all instances and deduplicate
-        const memberSet = new Set(
-            group.members
-                .map(m => m.toString())
-                .filter(id => id !== userId)
-        );
-        group.members = Array.from(memberSet);
-        // group.memberBalances = (group.memberBalances || []).filter(b => b.id?.toString() !== userId);
+        // Filter out the member with matching user ID from embedded structure
+        group.members = group.members.filter(m => {
+            const memberUserId = (m.user?._id || m.user)?.toString();
+            return memberUserId !== userId;
+        });
 
         if (group.members.length === beforeCount) {
             return res.status(404).json({ success: false, error: "member_not_found" });
@@ -544,4 +572,54 @@ async function removeMember(req, res) {
     }
 }
 
-module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances, updateGroup, deleteGroup, joinGroup, removeMember };
+async function updateMyDisplayName(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { groupId } = req.params;
+        const { displayName } = req.body;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "invalid_group_id" });
+        }
+
+        if (!displayName || typeof displayName !== "string" || displayName.trim() === "") {
+            return res.status(400).json({ success: false, error: "invalid_display_name" });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        // Find the member and update their displayName
+        const memberIndex = group.members.findIndex(m => {
+            const userId = (m.user?._id || m.user)?.toString();
+            return userId === requesterId;
+        });
+
+        if (memberIndex === -1) {
+            return res.status(403).json({ success: false, error: "not_a_member" });
+        }
+
+        group.members[memberIndex].displayName = displayName.trim();
+        await group.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                groupId: group._id.toString(),
+                displayName: displayName.trim()
+            }
+        });
+    } catch (error) {
+        console.error("Update display name error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+
+module.exports = { createGroup, getUserGroups, getGroupDetails, getGroupBalances, updateGroup, deleteGroup, joinGroup, removeMember, updateMyDisplayName };

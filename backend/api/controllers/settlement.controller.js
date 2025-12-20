@@ -34,7 +34,7 @@ async function createSettlement(req, res) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
-        const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
+        const memberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         if (!memberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to create a settlement in this group" });
         }
@@ -62,8 +62,8 @@ async function createSettlement(req, res) {
 
         const currentBalances = new Map();
         (group.memberBalances || []).forEach(entry => {
-            if (!entry?.id) return;
-            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+            if (!entry?.userId) return;
+            currentBalances.set(entry.userId.toString(), Number(entry.balance) || 0);
         });
 
         memberIds.forEach(id => {
@@ -77,7 +77,7 @@ async function createSettlement(req, res) {
             currentBalances.set(userId, existing + delta);
         }
 
-        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        group.memberBalances = Array.from(currentBalances.entries()).map(([userId, balance]) => ({ userId, balance }));
         await group.save();
 
         return res.status(201).json({
@@ -119,7 +119,7 @@ async function getSettlements(req, res) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
-        const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
+        const memberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         if (!memberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to view settlements in this group" });
         }
@@ -185,7 +185,7 @@ async function deleteSettlement(req, res) {
             return res.status(403).json({ success: false, error: "You are not authorized to delete this settlement" });
         }
 
-        const memberIds = Array.isArray(group.members) ? group.members.map(m => m.toString()) : [];
+        const memberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         if (!memberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to delete this settlement" });
         }
@@ -199,8 +199,8 @@ async function deleteSettlement(req, res) {
 
         const currentBalances = new Map();
         (group.memberBalances || []).forEach(entry => {
-            if (!entry?.id) return;
-            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+            if (!entry?.userId) return;
+            currentBalances.set(entry.userId.toString(), Number(entry.balance) || 0);
         });
 
         memberIds.forEach(id => {
@@ -212,7 +212,7 @@ async function deleteSettlement(req, res) {
             currentBalances.set(userId, existing + delta);
         }
 
-        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        group.memberBalances = Array.from(currentBalances.entries()).map(([userId, balance]) => ({ userId, balance }));
         await group.save();
         await settlement.deleteOne();
 

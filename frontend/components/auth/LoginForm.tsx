@@ -23,7 +23,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
       await onSubmit(email, password);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign in. Please try again.';
-      if (message === 'invalid_credentials') setError('Invalid email or password.');
+      if (message === 'invalid_credentials') setError('Invalid email/username or password.');
       else if (message === 'missing_fields') setError('Email and password are required.');
       else setError(message);
     } finally {
@@ -35,12 +35,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <Input
-          label="Email Address"
-          type="email"
+          label="Email or Username"
+          type="text"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          autoComplete="email"
+          placeholder="you@example.com or username"
+          autoComplete="username"
           className="h-11 bg-black border-gray-800 text-white placeholder-gray-500"
         />
 

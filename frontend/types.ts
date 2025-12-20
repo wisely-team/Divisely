@@ -1,8 +1,16 @@
 export interface User {
   id: string;
   name: string;
+  username?: string;
   email: string;
   avatar?: string;
+}
+
+export interface GroupMember {
+  userId: string;
+  username: string;
+  displayName: string;
+  email?: string;
 }
 
 export interface Group {

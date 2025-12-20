@@ -52,6 +52,7 @@ export const GlobalAddExpenseModal: React.FC<GlobalAddExpenseModalProps> = ({
                 const normalizedMembers = (details.members || []).map(m => ({
                     id: m.userId,
                     name: m.displayName || m.email || 'Member',
+                    username: m.username,
                     email: m.email || '',
                     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.displayName || m.email || 'Member')}`
                 }));

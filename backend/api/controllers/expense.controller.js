@@ -34,7 +34,7 @@ async function createExpense(req, res) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
-        const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         const requesterInGroup = groupMemberIds.includes(requesterId);
         if (!requesterInGroup) {
             return res.status(403).json({ success: false, error: "You are not authorized to create an expense in this group" });
@@ -98,10 +98,10 @@ async function createExpense(req, res) {
 
         const currentBalances = new Map();
         (group.memberBalances || []).forEach(entry => {
-            if (!entry?.id) {
+            if (!entry?.userId) {
                 return;
             }
-            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+            currentBalances.set(entry.userId.toString(), Number(entry.balance) || 0);
         });
 
         groupMemberIds.forEach(memberId => {
@@ -115,7 +115,7 @@ async function createExpense(req, res) {
             currentBalances.set(userId, existing + delta);
         }
 
-        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        group.memberBalances = Array.from(currentBalances.entries()).map(([userId, balance]) => ({ userId, balance }));
         await group.save();
 
         return res.status(201).json({
@@ -154,7 +154,7 @@ async function getGroupExpenses(req, res) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
-        const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         if (!groupMemberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to view expenses in this group" });
         }
@@ -241,7 +241,7 @@ async function deleteExpense(req, res) {
             return res.status(403).json({ success: false, error: "You are not authorized to delete this expense" });
         }
 
-        const groupMemberIds = Array.isArray(group.members) ? group.members.map(id => id.toString()) : [];
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
         if (!groupMemberIds.includes(requesterId)) {
             return res.status(403).json({ success: false, error: "You are not authorized to delete this expense" });
         }
@@ -259,10 +259,10 @@ async function deleteExpense(req, res) {
 
         const currentBalances = new Map();
         (group.memberBalances || []).forEach(entry => {
-            if (!entry?.id) {
+            if (!entry?.userId) {
                 return;
             }
-            currentBalances.set(entry.id.toString(), Number(entry.balance) || 0);
+            currentBalances.set(entry.userId.toString(), Number(entry.balance) || 0);
         });
 
         groupMemberIds.forEach(memberId => {
@@ -276,7 +276,7 @@ async function deleteExpense(req, res) {
             currentBalances.set(userId, existing + delta);
         }
 
-        group.memberBalances = Array.from(currentBalances.entries()).map(([id, balance]) => ({ id, balance }));
+        group.memberBalances = Array.from(currentBalances.entries()).map(([userId, balance]) => ({ userId, balance }));
         await group.save();
         await expense.deleteOne();
 

@@ -9,7 +9,7 @@ async function getMe(req, res) {
       return res.status(401).json({ success: false, error: "unauthorized" });
     }
 
-    const user = await User.findById(userId).select("displayName email");
+    const user = await User.findById(userId).select("username email");
     if (!user) {
       return res.status(404).json({ success: false, error: "user_not_found" });
     }
@@ -19,7 +19,7 @@ async function getMe(req, res) {
       data: {
         userId: user._id.toString(),
         email: user.email,
-        displayName: user.displayName,
+        username: user.username,
         updatedAt: user.updatedAt?.toISOString?.() || new Date().toISOString()
       }
     });
@@ -32,7 +32,7 @@ async function getMe(req, res) {
 async function updateMe(req, res) {
   try {
     const userId = req.user?.userId;
-    const { displayName, email, currentPassword, newPassword } = req.body || {};
+    const { username, email, currentPassword, newPassword } = req.body || {};
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, error: "unauthorized" });
@@ -43,28 +43,18 @@ async function updateMe(req, res) {
       return res.status(404).json({ success: false, error: "user_not_found" });
     }
 
-    if (displayName !== undefined) {
-      if (typeof displayName !== "string" || displayName.trim() === "") {
-        return res.status(400).json({ success: false, error: "invalid_display_name" });
+    if (username !== undefined) {
+      if (typeof username !== "string" || username.trim() === "") {
+        return res.status(400).json({ success: false, error: "invalid_username" });
       }
-      const existingName = await User.findOne({ displayName: displayName.trim(), _id: { $ne: userId } });
+      const existingName = await User.findOne({ username: username.trim(), _id: { $ne: userId } });
       if (existingName) {
-        return res.status(400).json({ success: false, error: "display_name_exists" });
+        return res.status(400).json({ success: false, error: "username_exists" });
       }
-      user.displayName = displayName.trim();
+      user.username = username.trim();
     }
 
-    if (email !== undefined) {
-      if (typeof email !== "string" || email.trim() === "") {
-        return res.status(400).json({ success: false, error: "invalid_email" });
-      }
-      const normalizedEmail = email.toLowerCase();
-      const existingEmail = await User.findOne({ email: normalizedEmail, _id: { $ne: userId } });
-      if (existingEmail) {
-        return res.status(400).json({ success: false, error: "email_exists" });
-      }
-      user.email = normalizedEmail;
-    }
+    // Email is not editable - only username can be changed
 
     if (newPassword !== undefined) {
       if (typeof newPassword !== "string" || newPassword.length < 6) {
@@ -87,7 +77,7 @@ async function updateMe(req, res) {
       data: {
         userId: user._id.toString(),
         email: user.email,
-        displayName: user.displayName,
+        username: user.username,
         updatedAt: user.updatedAt?.toISOString?.() || new Date().toISOString()
       }
     });

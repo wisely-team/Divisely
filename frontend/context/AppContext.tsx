@@ -10,11 +10,11 @@ import { userService } from '../services/userService';
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  addGroup: (name: string, description: string) => Promise<Group>;
+  addGroup: (name: string, description: string, displayName?: string) => Promise<Group>;
   updateGroup: (groupId: string, data: Partial<Group>) => void;
   deleteGroup: (groupId: string) => Promise<void>;
   removeMember: (groupId: string, userId: string) => void;
-  joinGroup: (groupId: string) => Promise<Group>;
+  joinGroup: (groupId: string, displayName?: string) => Promise<Group>;
   removeMemberFromServer: (groupId: string, userId: string) => Promise<void>;
   loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
   updateProfile: (data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) => Promise<User>;
@@ -84,7 +84,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // old code:
           const memberCount = Number.isFinite(g.memberCount) ? Math.max(0, g.memberCount) : 0;
           const members = memberCount > 1 ? Array(memberCount).fill(currentUser.id) : [currentUser.id];
-          
+
           return {
             id: g.groupId,
             name: g.name,
@@ -172,7 +172,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const normalizedUser: User =
         matchedUser || {
           id: response.user.userId,
-          name: response.user.displayName || response.user.email.split('@')[0],
+          name: response.user.username || response.user.email.split('@')[0],
+          username: response.user.username,
           email: response.user.email
         };
 
@@ -197,7 +198,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
   };
 
-  const addGroup = async (name: string, description: string) => {
+  const addGroup = async (name: string, description: string, displayName?: string) => {
     if (!currentUser) {
       throw new Error('Please log in to create a group.');
     }
@@ -208,7 +209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      const createdGroup = await groupService.createGroup(name, description, accessToken);
+      const createdGroup = await groupService.createGroup(name, description, displayName || currentUser.username || currentUser.name, accessToken);
       // Normalize member IDs from the API response; support both object and string payloads
       const memberIdSet = new Set<string>();
       memberIdSet.add(currentUser.id);
@@ -296,7 +297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const joinGroup = async (groupId: string) => {
+  const joinGroup = async (groupId: string, displayName?: string) => {
     if (!currentUser) {
       throw new Error('Please log in to join the group.');
     }
@@ -306,7 +307,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('Missing access token. Please log in again.');
     }
 
-    const response = await groupService.joinGroup(groupId, accessToken);
+    const response = await groupService.joinGroup(groupId, displayName || currentUser.username || currentUser.name, accessToken);
 
     // Fetch full details to get members list fresh
     let details = response;
@@ -365,7 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const payload = {
-      displayName: data.name,
+      username: data.name,
       email: data.email,
       currentPassword: data.currentPassword,
       newPassword: data.newPassword
@@ -374,7 +375,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = await userService.updateProfile(payload, accessToken);
     const normalized: User = {
       id: updated.userId,
-      name: updated.displayName,
+      name: updated.username,
+      username: updated.username,
       email: updated.email,
       avatar: currentUser.avatar
     };

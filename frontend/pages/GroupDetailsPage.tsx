@@ -96,6 +96,7 @@ export const GroupDetailsPage = () => {
         const normalizedMembers = (details.members || []).map(m => ({
           id: m.userId,
           name: m.displayName || m.email || 'Member',
+          username: m.username,
           email: m.email || '',
           avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.displayName || m.email || 'Member')}`
         }));
@@ -131,6 +132,22 @@ export const GroupDetailsPage = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to remove member';
       alert(message);
+    }
+  };
+
+  const handleUpdateMyDisplayName = async (newDisplayName: string) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token || !id) return;
+    try {
+      await groupService.updateMyDisplayName(id, newDisplayName, token);
+      // Update local state to reflect the change
+      setGroupMembers(prev => prev.map(m =>
+        m.id === currentUser?.id ? { ...m, name: newDisplayName } : m
+      ));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update display name';
+      alert(message);
+      throw error;
     }
   };
 
@@ -290,9 +307,8 @@ export const GroupDetailsPage = () => {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 font-medium text-sm transition-colors relative ${
-              activeTab === tab ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-6 py-3 font-medium text-sm transition-colors relative ${activeTab === tab ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-600"></div>}
@@ -387,6 +403,7 @@ export const GroupDetailsPage = () => {
             currentUserId={currentUser?.id || ''}
             isOwner={isOwner}
             onRemoveMember={handleRemoveMember}
+            onUpdateDisplayName={handleUpdateMyDisplayName}
           />
 
           {detailsError && <p className="text-sm text-red-600">{detailsError}</p>}

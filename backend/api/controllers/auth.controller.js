@@ -7,9 +7,9 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret
 
 async function register(req, res) {
     try {
-        const { email, password, displayName } = req.body || {};
+        const { email, password, username } = req.body || {};
 
-        if (!email || !password || !displayName) {
+        if (!email || !password || !username) {
             return res.status(400).json({
                 success: false,
                 error: "missing_fields"
@@ -24,20 +24,20 @@ async function register(req, res) {
             });
         }
 
-        const existingUserName = await User.findOne({ displayName: displayName });
+        const existingUserName = await User.findOne({ username: username });
         if (existingUserName) {
             return res.status(400).json({
                 success: false,
-                error: "displayName_exists"
+                error: "username_exists"
             });
         }
-        
+
 
         const passwordHash = await bcrypt.hash(password, 10);
 
         const user = await User.create({
             email: email.toLowerCase(),
-            displayName,
+            username,
             passwordHash,
             email_verified: false
         });
@@ -47,7 +47,7 @@ async function register(req, res) {
             data: {
                 userId: user._id.toString(),
                 email: user.email,
-                displayName: user.displayName,
+                username: user.username,
                 createdAt: user.createdAt.toISOString()
             }
         });
@@ -71,7 +71,17 @@ async function login(req, res) {
             });
         }
 
-        const user = await User.findOne({ email: email.toLowerCase() });
+        // Allow login with email or username
+        const identifier = email.trim();
+        const isEmail = identifier.includes('@');
+
+        let user;
+        if (isEmail) {
+            user = await User.findOne({ email: identifier.toLowerCase() });
+        } else {
+            user = await User.findOne({ username: identifier });
+        }
+
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -89,7 +99,7 @@ async function login(req, res) {
 
         const payload = {
             userId: user._id.toString(),
-            username: user.displayName
+            username: user.username
         };
 
         const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
@@ -104,7 +114,7 @@ async function login(req, res) {
                 user: {
                     userId: user._id.toString(),
                     email: user.email,
-                    displayName: user.displayName
+                    username: user.username
                 }
             }
         });
@@ -206,7 +216,7 @@ async function refreshToken(req, res) {
 
         const payload = {
             userId: user._id.toString(),
-            username: user.displayName
+            username: user.username
         };
 
         const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });

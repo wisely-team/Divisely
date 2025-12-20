@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 
 export const SignUpPage = () => {
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,12 +19,12 @@ export const SignUpPage = () => {
     setIsSubmitting(true);
 
     try {
-      await authService.register(email, password, displayName);
+      await authService.register(email, password, username);
       navigate('/login');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not create account. Please try again.';
       if (message === 'email_exists') setError('Email already exists.');
-      else if (message === 'displayName_exists') setError('Display name already exists.');
+      else if (message === 'username_exists') setError('Username already exists.');
       else if (message === 'missing_fields') setError('Please fill all fields.');
       else setError(message);
     } finally {
@@ -76,10 +76,10 @@ export const SignUpPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <Input
-                label="Display Name"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                placeholder="John Doe"
+                label="Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="johndoe"
                 className="h-11 bg-black border-gray-800 text-white placeholder-gray-500"
                 required
               />
