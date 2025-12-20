@@ -56,7 +56,6 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
           value={groupDescription}
           onChange={e => setGroupDescription(e.target.value)}
           placeholder="What's this for?"
-          required
           disabled={isSubmitting}
         />
         <Input
@@ -64,9 +63,16 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
           value={displayName}
           onChange={e => setDisplayName(e.target.value)}
           placeholder="e.g. John"
+          required
           disabled={isSubmitting}
         />
-        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600 mt-2">
+            {error === 'missing_fields'
+              ? 'Please fill in Group Name and Your Name'
+              : error}
+          </p>
+        )}
         <div className="flex justify-end gap-2 mt-6">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel

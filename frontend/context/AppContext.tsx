@@ -241,7 +241,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setGroups(prev => [...prev, normalizedGroup]);
       return normalizedGroup;
     } catch (error) {
-      console.error('Failed to create group', error);
       throw error;
     }
   };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Wallet, PieChart, LogOut, Menu, X, Plus, Clock, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../UIComponents';
@@ -15,6 +15,7 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { currentUser, logout, groups, addGroup } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = React.useState(false);
   const [isGlobalExpenseModalOpen, setIsGlobalExpenseModalOpen] = React.useState(false);
@@ -112,7 +113,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link
             to="/dashboard"
             onClick={closeSidebar}
-            className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${location.pathname === '/dashboard'
+              ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600 pl-3'
+              : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'
+              }`}
           >
             <PieChart className="w-5 h-5" />
             Dashboard
@@ -120,7 +124,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link
             to="/activity"
             onClick={closeSidebar}
-            className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors font-medium"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${location.pathname === '/activity'
+              ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600 pl-3'
+              : 'text-gray-600 hover:bg-teal-50 hover:text-teal-600'
+              }`}
           >
             <Clock className="w-5 h-5" />
             Recent Activity
