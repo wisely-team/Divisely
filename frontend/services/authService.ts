@@ -77,5 +77,29 @@ export const authService = {
     });
 
     return handleResponse<{ accessToken: string; refreshToken: string }>(response, "refresh_token_failed");
+  },
+
+  async verifyEmail(email: string, code: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, code })
+    });
+
+    return handleResponse<{ message: string }>(response, "email_verification_failed");
+  },
+
+  async resendVerificationCode(email: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/resend-verification-code`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email })
+    });
+
+    return handleResponse<{ message: string }>(response, "resend_verification_code_failed");
   }
 };
