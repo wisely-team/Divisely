@@ -22,20 +22,35 @@ export const JoinGroupPage: React.FC = () => {
         return;
       }
 
-      // Wait a moment for auth to load from localStorage
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for AppContext to potentially load user from localStorage
+      // Check multiple times over 500ms to handle slow renders in production
+      let attempts = 0;
+      while (attempts < 5) {
+        const token = localStorage.getItem('accessToken');
+        const storedUser = localStorage.getItem('user');
+        if (token && storedUser) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
 
       const token = localStorage.getItem('accessToken');
-      if (!currentUser || !token) {
+      const storedUser = localStorage.getItem('user');
+      if (!token || !storedUser) {
         // Store the intended destination and redirect to login
-        sessionStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
+        // Use localStorage so it persists across tabs
+        localStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
         navigate('/login');
         return;
       }
 
       hasCheckedRef.current = true;
-      // Set default displayName to user's username
-      setDisplayName(currentUser.username || currentUser.name || '');
+      // Set default displayName to user's username (parse from localStorage if currentUser not yet ready)
+      try {
+        const user = JSON.parse(storedUser);
+        setDisplayName(user.username || user.name || currentUser?.username || currentUser?.name || '');
+      } catch {
+        setDisplayName(currentUser?.username || currentUser?.name || '');
+      }
       setStatus('input');
       setMessage('Enter your name for this group');
     };

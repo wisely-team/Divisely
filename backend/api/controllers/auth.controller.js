@@ -1,9 +1,16 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
+const { sendVerificationEmail } = require("../config/email");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret_change_me";
+const VERIFICATION_CODE_EXPIRY = 10 * 60 * 1000; // 10 minutes
+
+// Generate a random 6-digit verification code
+function generateVerificationCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 async function register(req, res) {
     try {
@@ -35,12 +42,21 @@ async function register(req, res) {
 
         const passwordHash = await bcrypt.hash(password, 10);
 
+        // Generate verification code
+        const verificationCode = generateVerificationCode();
+        const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY);
+
         const user = await User.create({
             email: email.toLowerCase(),
             username,
             passwordHash,
-            email_verified: false
+            email_verified: false,
+            verification_code: verificationCode,
+            verification_code_expires: verificationCodeExpires
         });
+
+        // Send verification email
+        await sendVerificationEmail(user.email, user.username, verificationCode);
 
         return res.status(201).json({
             success: true,
@@ -97,20 +113,28 @@ async function login(req, res) {
             });
         }
 
+        // Check if email is verified
+        if (!user.email_verified) {
+            return res.status(403).json({
+                success: false,
+                error: "email_not_verified"
+            });
+        }
+
         const payload = {
             userId: user._id.toString(),
             username: user.username
         };
 
-        const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-        const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+        const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "36500d" });
+        const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "36500d" });
         console.log("User logged in:", user._id.toString());
         return res.status(200).json({
             success: true,
             data: {
                 accessToken,
                 refreshToken,
-                expiresIn: 3600,
+                expiresIn: 3153600000,
                 user: {
                     userId: user._id.toString(),
                     email: user.email,
@@ -185,6 +209,98 @@ async function forgotPassword(req, res) {
     }
 }
 
+async function verifyEmail(req, res) {
+    try {
+        const { email, code } = req.body || {};
+
+        if (!email || typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ success: false, error: "missing_email" });
+        }
+
+        if (!code || typeof code !== "string" || code.trim() === "") {
+            return res.status(400).json({ success: false, error: "missing_code" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: "user_not_found" });
+        }
+
+        if (user.email_verified) {
+            return res.status(400).json({ success: false, error: "email_already_verified" });
+        }
+
+        if (!user.verification_code) {
+            return res.status(400).json({ success: false, error: "no_verification_code" });
+        }
+
+        const isCodeExpired = new Date() > user.verification_code_expires;
+        if (isCodeExpired) {
+            return res.status(400).json({ success: false, error: "code_expired" });
+        }
+
+        if (user.verification_code !== code.trim()) {
+            return res.status(400).json({ success: false, error: "invalid_code" });
+        }
+
+        // Code is valid - verify email
+        user.email_verified = true;
+        user.verification_code = null;
+        user.verification_code_expires = null;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            data: { message: "Email verified successfully" }
+        });
+    } catch (error) {
+        console.error("Verify email error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+async function resendVerificationCode(req, res) {
+    try {
+        const { email } = req.body || {};
+
+        if (!email || typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ success: false, error: "missing_email" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: "user_not_found" });
+        }
+
+        if (user.email_verified) {
+            return res.status(400).json({ success: false, error: "email_already_verified" });
+        }
+
+        // Generate new verification code
+        const verificationCode = generateVerificationCode();
+        const verificationCodeExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY);
+
+        user.verification_code = verificationCode;
+        user.verification_code_expires = verificationCodeExpires;
+        await user.save();
+
+        // Send verification email
+        await sendVerificationEmail(user.email, user.username, verificationCode);
+
+        return res.status(200).json({
+            success: true,
+            data: { message: "Verification code sent" }
+        });
+    } catch (error) {
+        console.error("Resend verification code error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
 async function refreshToken(req, res) {
     try {
         const { refreshToken } = req.body || {};
@@ -219,15 +335,15 @@ async function refreshToken(req, res) {
             username: user.username
         };
 
-        const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-        const newRefreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+        const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "36500d" });
+        const newRefreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "36500d" });
 
         return res.status(200).json({
             success: true,
             data: {
                 accessToken: newAccessToken,
                 refreshToken: newRefreshToken,
-                expiresIn: 3600
+                expiresIn: 3153600000
             }
         });
     } catch (error) {
@@ -239,4 +355,4 @@ async function refreshToken(req, res) {
     }
 }
 
-module.exports = { register, login, logout, forgotPassword, refreshToken };
+module.exports = { register, login, logout, forgotPassword, refreshToken, verifyEmail, resendVerificationCode };

@@ -13,9 +13,52 @@ interface ExpenseListProps {
   onDeleteExpense: (expenseId: string) => Promise<void> | void;
   onDeleteSettlement?: (settlementId: string) => Promise<void> | void;
   currentUserId?: string;
+  isLoadingUsers?: boolean;
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, onDeleteExpense, onDeleteSettlement, currentUserId }) => {
+const SkeletonExpenseItem: React.FC = () => (
+  <div className="p-5 flex justify-between items-center">
+    <div className="flex items-start gap-4 flex-1">
+      {/* Icon skeleton */}
+      <div className="mt-1 bg-gray-200 p-2.5 rounded-xl w-10 h-10 animate-pulse" />
+      <div className="flex-1">
+        {/* Description skeleton */}
+        <div className="h-5 bg-gray-200 rounded w-2/5 mb-2 animate-pulse" />
+        {/* Subtitle skeleton */}
+        <div className="h-4 bg-gray-200 rounded w-3/5 animate-pulse" />
+      </div>
+    </div>
+    <div className="flex items-center gap-6">
+      <div className="text-right">
+        {/* Amount skeleton */}
+        <div className="h-5 bg-gray-200 rounded w-20 mb-2 animate-pulse" />
+        {/* Label skeleton */}
+        <div className="h-3 bg-gray-200 rounded w-16 mb-1 animate-pulse" />
+        {/* Date skeleton */}
+        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+      </div>
+    </div>
+  </div>
+);
+
+export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, onDeleteExpense, onDeleteSettlement, currentUserId, isLoadingUsers = false }) => {
+  // Show skeleton loading state when user data is being fetched
+  if (isLoadingUsers) {
+    return (
+      <Card className="overflow-hidden shadow-sm border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <h2 className="font-bold text-gray-800">Expenses</h2>
+          <span className="text-sm font-medium px-2 py-1 bg-white rounded border border-gray-200 text-gray-600">Loading...</span>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {[...Array(4)].map((_, i) => (
+            <SkeletonExpenseItem key={i} />
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
   if (transactions.length === 0) {
     return (
       <Card className="overflow-hidden shadow-sm border-gray-200">
@@ -98,13 +141,12 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, o
                 <div className="text-right">
                   <p className={`font-bold text-lg ${amountColor}`}>${formattedAmount.toFixed(2)}</p>
                   {amountLabel && (
-                    <p className={`text-xs font-medium ${
-                      isSettlement
-                        ? 'text-blue-500'
-                        : hasShare
-                          ? (isBorrowFlag ? 'text-red-500' : 'text-green-500')
-                          : 'text-gray-400'
-                    }`}>
+                    <p className={`text-xs font-medium ${isSettlement
+                      ? 'text-blue-500'
+                      : hasShare
+                        ? (isBorrowFlag ? 'text-red-500' : 'text-green-500')
+                        : 'text-gray-400'
+                      }`}>
                       {amountLabel}
                     </p>
                   )}
