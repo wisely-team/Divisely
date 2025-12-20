@@ -126,15 +126,15 @@ async function login(req, res) {
             username: user.username
         };
 
-        const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-        const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+        const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "36500d" });
+        const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "36500d" });
         console.log("User logged in:", user._id.toString());
         return res.status(200).json({
             success: true,
             data: {
                 accessToken,
                 refreshToken,
-                expiresIn: 3600,
+                expiresIn: 3153600000,
                 user: {
                     userId: user._id.toString(),
                     email: user.email,
@@ -335,15 +335,15 @@ async function refreshToken(req, res) {
             username: user.username
         };
 
-        const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-        const newRefreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+        const newAccessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "36500d" });
+        const newRefreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: "36500d" });
 
         return res.status(200).json({
             success: true,
             data: {
                 accessToken: newAccessToken,
                 refreshToken: newRefreshToken,
-                expiresIn: 3600
+                expiresIn: 3153600000
             }
         });
     } catch (error) {
