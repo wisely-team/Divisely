@@ -11,7 +11,6 @@ async function createExpense(req, res) {
         // trim paidAt to be only day
         paidAt = typeof paidAt === "string" ? paidAt.trim().split("T")[0] : paidAt;
 
-        console.log("Create expense request by user:", requesterId);
         if (!requesterId) {
             return res.status(401).json({ success: false, error: "unauthorized" });
         }

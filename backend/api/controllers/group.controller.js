@@ -7,12 +7,11 @@ const Settlement = require("../models/settlement.model");
 async function createGroup(req, res) {
     try {
         const ownerId = req.user?.userId;
-        console.log("ownerId:", ownerId);
-        console.log("Request body:", req.body);
-        console.log("name:", req.body?.name);
 
         const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-        const description = typeof req.body?.description === "string" ? req.body.description.trim() : "";
+        const description = typeof req.body?.description === "string" && req.body.description.trim()
+            ? req.body.description.trim()
+            : "No description provided";
         const ownerDisplayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
 
         if (!ownerId) {
@@ -25,8 +24,7 @@ async function createGroup(req, res) {
         if (!name) {
             return res.status(400).json({
                 success: false,
-                error: "missing_fields",
-                message: "Group name is required"
+                error: "Group name is required"
             });
         }
 

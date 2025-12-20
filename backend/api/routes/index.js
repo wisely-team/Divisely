@@ -6,12 +6,14 @@ const userRoutes = require("./user.routes");
 const groupRoutes = require("./group.routes");
 const expenseRoutes = require("./expense.routes");
 const settlementRoutes = require("./settlement.routes");
+const activityRoutes = require("./activity.routes");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/groups", groupRoutes);
 router.use("/", expenseRoutes);
 router.use("/", settlementRoutes);
+router.use("/", activityRoutes);
 
 router.get("/", (req, res) => {
     res.json({
