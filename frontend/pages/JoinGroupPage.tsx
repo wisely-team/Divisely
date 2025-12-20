@@ -12,6 +12,16 @@ export const JoinGroupPage: React.FC = () => {
   const [displayName, setDisplayName] = useState<string>('');
   const hasCheckedRef = React.useRef(false);
 
+  const getStoredUser = () => {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as { username?: string; name?: string };
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       if (hasCheckedRef.current) return;
@@ -22,20 +32,25 @@ export const JoinGroupPage: React.FC = () => {
         return;
       }
 
-      // Wait a moment for auth to load from localStorage
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       const token = localStorage.getItem('accessToken');
-      if (!currentUser || !token) {
-        // Store the intended destination and redirect to login
+      if (!token) {
+        // Not authenticated at all
+        sessionStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
+        navigate('/login');
+        return;
+      }
+
+      // On a fresh tab load, AppContext may not have hydrated currentUser yet.
+      // If we already have a token, use localStorage as a fallback instead of bouncing to /login.
+      const effectiveUser = currentUser || getStoredUser();
+      if (!effectiveUser) {
         sessionStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
         navigate('/login');
         return;
       }
 
       hasCheckedRef.current = true;
-      // Set default displayName to user's username
-      setDisplayName(currentUser.username || currentUser.name || '');
+      setDisplayName(effectiveUser.username || effectiveUser.name || '');
       setStatus('input');
       setMessage('Enter your name for this group');
     };
