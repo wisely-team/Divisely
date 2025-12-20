@@ -73,6 +73,7 @@ export const GroupDetailsPage = () => {
   const [groupMembers, setGroupMembers] = useState(users.filter(u => group?.members.includes(u.id)));
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [ownerId, setOwnerId] = useState(group?.ownerId || '');
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
 
   useEffect(() => {
     if (group) {
@@ -90,6 +91,8 @@ export const GroupDetailsPage = () => {
       if (!id) return;
       const token = localStorage.getItem('accessToken');
       if (!token) return;
+
+      setIsLoadingMembers(true);
       try {
         const details = await groupService.getGroupDetails(id, token);
         setGroupName(details.name);
@@ -112,6 +115,8 @@ export const GroupDetailsPage = () => {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load group details';
         setDetailsError(message);
+      } finally {
+        setIsLoadingMembers(false);
       }
     };
 
@@ -325,6 +330,7 @@ export const GroupDetailsPage = () => {
             onDeleteExpense={handleDeleteExpense}
             onDeleteSettlement={handleDeleteSettlement}
             currentUserId={currentUser?.id}
+            isLoadingUsers={isLoadingMembers}
           />
         </div>
       )}
