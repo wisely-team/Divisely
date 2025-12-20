@@ -24,6 +24,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign in. Please try again.';
       if (message === 'invalid_credentials') setError('Invalid email/username or password.');
+      else if (message === 'email_not_verified') setError('Please verify your email first. Check your inbox for the verification code.');
       else if (message === 'missing_fields') setError('Email and password are required.');
       else setError(message);
     } finally {

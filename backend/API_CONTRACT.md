@@ -19,7 +19,7 @@ Request:
 {
   "email": "user@example.com",
   "password": "SecurePass123!",
-  "displayName": "Ali Veli"
+  "username": "johndoe"
 }
 
 Response (201 Created):
@@ -28,9 +28,62 @@ Response (201 Created):
   "data": {
     "userId": "user_123",
     "email": "user@example.com",
-    "displayName": "Ali Veli",
+    "username": "johndoe",
     "createdAt": "2024-01-15T10:30:00Z"
   }
+}
+
+Note: Verification code gönderilir (frontend console'da görülebilir dev aşamasında)
+```
+
+### 1.2. Verify Email
+```http
+POST /api/auth/verify-email
+Content-Type: application/json
+
+Request:
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+
+Response (200 OK):
+{
+  "success": true,
+  "data": {
+    "message": "Email verified successfully"
+  }
+}
+
+Error Responses:
+{
+  "success": false,
+  "error": "invalid_code" | "code_expired" | "user_not_found" | "email_already_verified"
+}
+```
+
+### 1.3. Resend Verification Code
+```http
+POST /api/auth/resend-verification-code
+Content-Type: application/json
+
+Request:
+{
+  "email": "user@example.com"
+}
+
+Response (200 OK):
+{
+  "success": true,
+  "data": {
+    "message": "Verification code sent"
+  }
+}
+
+Error Responses:
+{
+  "success": false,
+  "error": "user_not_found" | "email_already_verified"
 }
 ```
 
