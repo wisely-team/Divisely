@@ -1,5 +1,16 @@
 const nodemailer = require("nodemailer");
 
+// Get sender email from env or use default
+const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@wisely.tr';
+const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'Divisely';
+
+// Log configuration at startup (without secrets)
+console.log('[EMAIL CONFIG] Brevo SMTP configured:');
+console.log(`  - Host: smtp-relay.brevo.com:587`);
+console.log(`  - User: ${process.env.BREVO_SMTP_USER ? 'SET' : 'NOT SET'}`);
+console.log(`  - Key: ${process.env.BREVO_SMTP_KEY ? 'SET (hidden)' : 'NOT SET'}`);
+console.log(`  - Sender: ${SENDER_NAME} <${SENDER_EMAIL}>`);
+
 // Brevo SMTP transporter setup
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
@@ -52,8 +63,8 @@ function getVerificationEmailHTML(username, verificationCode) {
 async function sendVerificationEmail(email, username, verificationCode) {
     try {
         const mailOptions = {
-            from: '"Divisely" <noreply@wisely.tr>',
-            replyTo: 'support@wisely.tr',
+            from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
+            replyTo: SENDER_EMAIL,
             to: email,
             subject: "Verify your Divisely email address",
             html: getVerificationEmailHTML(username, verificationCode)
@@ -68,7 +79,6 @@ async function sendVerificationEmail(email, username, verificationCode) {
     }
 }
 
-module.exports = { sendVerificationEmail };
 
 // Password reset email template
 function getPasswordResetEmailHTML(username, resetCode) {
@@ -111,8 +121,8 @@ function getPasswordResetEmailHTML(username, resetCode) {
 async function sendPasswordResetEmail(email, username, resetCode) {
     try {
         const mailOptions = {
-            from: '"Divisely" <noreply@wisely.tr>',
-            replyTo: 'support@wisely.tr',
+            from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
+            replyTo: SENDER_EMAIL,
             to: email,
             subject: "Reset your Divisely password",
             html: getPasswordResetEmailHTML(username, resetCode)
