@@ -7,18 +7,32 @@ const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'Divisely';
 // Log configuration at startup (without secrets)
 console.log('[EMAIL CONFIG] Brevo SMTP configured:');
 console.log(`  - Host: smtp-relay.brevo.com:587`);
-console.log(`  - User: ${process.env.BREVO_SMTP_USER ? 'SET' : 'NOT SET'}`);
+console.log(`  - User: ${process.env.BREVO_SMTP_USER ? 'SET (' + process.env.BREVO_SMTP_USER + ')' : 'NOT SET'}`);
 console.log(`  - Key: ${process.env.BREVO_SMTP_KEY ? 'SET (hidden)' : 'NOT SET'}`);
 console.log(`  - Sender: ${SENDER_NAME} <${SENDER_EMAIL}>`);
 
-// Brevo SMTP transporter setup
+// Brevo SMTP transporter setup with timeouts
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
     port: 587,
-    secure: false, // TLS
+    secure: false, // TLS via STARTTLS
     auth: {
         user: process.env.BREVO_SMTP_USER,
         pass: process.env.BREVO_SMTP_KEY
+    },
+    connectionTimeout: 10000, // 10 seconds to establish connection
+    greetingTimeout: 10000,   // 10 seconds for SMTP greeting
+    socketTimeout: 30000,     // 30 seconds for socket operations
+    logger: true,             // Enable logging
+    debug: true               // Enable debug output
+});
+
+// Verify transporter connection at startup
+transporter.verify(function (error, success) {
+    if (error) {
+        console.error('[EMAIL CONFIG] SMTP connection verification FAILED:', error.message);
+    } else {
+        console.log('[EMAIL CONFIG] SMTP connection verified successfully');
     }
 });
 
