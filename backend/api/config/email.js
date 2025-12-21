@@ -1,40 +1,62 @@
-const nodemailer = require("nodemailer");
+// Brevo HTTP API for email sending
+// Uses REST API instead of SMTP to avoid port blocking on platforms like Render.com
 
-// Get sender email from env or use default
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@wisely.tr';
 const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'Divisely';
 
-// Log configuration at startup (without secrets)
-console.log('[EMAIL CONFIG] Brevo SMTP configured:');
-console.log(`  - Host: smtp-relay.brevo.com:587`);
-console.log(`  - User: ${process.env.BREVO_SMTP_USER ? 'SET (' + process.env.BREVO_SMTP_USER + ')' : 'NOT SET'}`);
-console.log(`  - Key: ${process.env.BREVO_SMTP_KEY ? 'SET (hidden)' : 'NOT SET'}`);
+// Log configuration at startup
+console.log('[EMAIL CONFIG] Brevo HTTP API configured:');
+console.log(`  - API Key: ${BREVO_API_KEY ? 'SET (hidden)' : 'NOT SET'}`);
 console.log(`  - Sender: ${SENDER_NAME} <${SENDER_EMAIL}>`);
 
-// Brevo SMTP transporter setup with timeouts
-const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false, // TLS via STARTTLS
-    auth: {
-        user: process.env.BREVO_SMTP_USER,
-        pass: process.env.BREVO_SMTP_KEY
-    },
-    connectionTimeout: 10000, // 10 seconds to establish connection
-    greetingTimeout: 10000,   // 10 seconds for SMTP greeting
-    socketTimeout: 30000,     // 30 seconds for socket operations
-    logger: true,             // Enable logging
-    debug: true               // Enable debug output
-});
+if (!BREVO_API_KEY) {
+    console.error('[EMAIL CONFIG] WARNING: BREVO_API_KEY is not set! Emails will NOT be sent.');
+}
 
-// Verify transporter connection at startup
-transporter.verify(function (error, success) {
-    if (error) {
-        console.error('[EMAIL CONFIG] SMTP connection verification FAILED:', error.message);
-    } else {
-        console.log('[EMAIL CONFIG] SMTP connection verified successfully');
+// Generic function to send email via Brevo HTTP API
+async function sendEmailViaBrevo(to, subject, htmlContent) {
+    if (!BREVO_API_KEY) {
+        console.error('[EMAIL] Cannot send email: BREVO_API_KEY is not configured');
+        return false;
     }
-});
+
+    console.log(`[EMAIL] Sending to: ${to}, Subject: ${subject}`);
+
+    try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'api-key': BREVO_API_KEY,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: SENDER_NAME,
+                    email: SENDER_EMAIL
+                },
+                to: [{ email: to }],
+                subject: subject,
+                htmlContent: htmlContent
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log(`[EMAIL SENT] Email sent successfully to ${to}. Message ID: ${data.messageId}`);
+            return true;
+        } else {
+            console.error(`[EMAIL ERROR] Brevo API error:`, data);
+            console.error(`[EMAIL ERROR] Status: ${response.status}, Code: ${data.code}, Message: ${data.message}`);
+            return false;
+        }
+    } catch (error) {
+        console.error(`[EMAIL ERROR] Failed to send email to ${to}:`, error.message);
+        return false;
+    }
+}
 
 // Verification email template
 function getVerificationEmailHTML(username, verificationCode) {
@@ -75,24 +97,12 @@ function getVerificationEmailHTML(username, verificationCode) {
 
 // Send verification email
 async function sendVerificationEmail(email, username, verificationCode) {
-    try {
-        const mailOptions = {
-            from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
-            replyTo: SENDER_EMAIL,
-            to: email,
-            subject: "Verify your Divisely email address",
-            html: getVerificationEmailHTML(username, verificationCode)
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL SENT] Verification email sent to ${email}. Message ID: ${info.messageId}`);
-        return true;
-    } catch (error) {
-        console.error(`[EMAIL ERROR] Failed to send verification email to ${email}:`, error);
-        return false;
-    }
+    return sendEmailViaBrevo(
+        email,
+        "Verify your Divisely email address",
+        getVerificationEmailHTML(username, verificationCode)
+    );
 }
-
 
 // Password reset email template
 function getPasswordResetEmailHTML(username, resetCode) {
@@ -133,22 +143,11 @@ function getPasswordResetEmailHTML(username, resetCode) {
 
 // Send password reset email
 async function sendPasswordResetEmail(email, username, resetCode) {
-    try {
-        const mailOptions = {
-            from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
-            replyTo: SENDER_EMAIL,
-            to: email,
-            subject: "Reset your Divisely password",
-            html: getPasswordResetEmailHTML(username, resetCode)
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL SENT] Password reset email sent to ${email}. Message ID: ${info.messageId}`);
-        return true;
-    } catch (error) {
-        console.error(`[EMAIL ERROR] Failed to send password reset email to ${email}:`, error);
-        return false;
-    }
+    return sendEmailViaBrevo(
+        email,
+        "Reset your Divisely password",
+        getPasswordResetEmailHTML(username, resetCode)
+    );
 }
 
 module.exports = { sendVerificationEmail, sendPasswordResetEmail };
