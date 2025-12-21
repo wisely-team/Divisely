@@ -7,6 +7,7 @@ export interface LoginResponse {
     userId: string;
     email: string;
     username: string;
+    avatar?: string;
   };
 }
 
@@ -29,7 +30,7 @@ export const authService = {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await handleResponse<{ accessToken: string; refreshToken: string; user: { userId: string; email: string; username: string } }>(
+    const data = await handleResponse<{ accessToken: string; refreshToken: string; user: { userId: string; email: string; username: string; avatar?: string } }>(
       response,
       "login_failed"
     );
@@ -101,5 +102,17 @@ export const authService = {
     });
 
     return handleResponse<{ message: string }>(response, "resend_verification_code_failed");
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, code, newPassword })
+    });
+
+    return handleResponse<{ message: string }>(response, "reset_password_failed");
   }
 };

@@ -17,7 +17,8 @@ interface AppContextType extends AppState {
   joinGroup: (groupId: string, displayName?: string) => Promise<Group>;
   removeMemberFromServer: (groupId: string, userId: string) => Promise<void>;
   loadGroupExpenses: (groupId: string) => Promise<Expense[]>;
-  updateProfile: (data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) => Promise<User>;
+  updateProfile: (data: { name?: string; email?: string; avatar?: string; currentPassword?: string; newPassword?: string }) => Promise<User>;
+  deleteAccount: (password: string) => Promise<void>;
   settleUp: (payload: { groupId: string; fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => Promise<Settlement>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
@@ -174,7 +175,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: response.user.userId,
           name: response.user.username || response.user.email.split('@')[0],
           username: response.user.username,
-          email: response.user.email
+          email: response.user.email,
+          avatar: response.user.avatar || 'avatar-1'
         };
 
       if (!matchedUser) {
@@ -354,7 +356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const updateProfile = async (data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) => {
+  const updateProfile = async (data: { name?: string; email?: string; avatar?: string; currentPassword?: string; newPassword?: string }) => {
     if (!currentUser) {
       throw new Error('Please log in to update your profile.');
     }
@@ -367,6 +369,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const payload = {
       username: data.name,
       email: data.email,
+      avatar: data.avatar,
       currentPassword: data.currentPassword,
       newPassword: data.newPassword
     };
@@ -377,7 +380,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: updated.username,
       username: updated.username,
       email: updated.email,
-      avatar: currentUser.avatar
+      avatar: updated.avatar || currentUser.avatar
     };
 
     setCurrentUser(normalized);
@@ -619,8 +622,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  const deleteAccount = async (password: string) => {
+    if (!currentUser) {
+      throw new Error('Please log in to delete your account.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    await userService.deleteAccount(password, accessToken);
+
+    // Logout after successful deletion
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+    setGroups([]);
+    setExpenses([]);
+    setSettlements([]);
+    setGroupBalances([]);
+  };
+
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, removeMemberFromServer, joinGroup, loadGroupExpenses, updateProfile, settleUp, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, removeMemberFromServer, joinGroup, loadGroupExpenses, updateProfile, deleteAccount, settleUp, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
       {children}
     </AppContext.Provider>
   );

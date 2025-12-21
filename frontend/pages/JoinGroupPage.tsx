@@ -44,6 +44,8 @@ export const JoinGroupPage: React.FC = () => {
       }
 
       hasCheckedRef.current = true;
+      // Clear the redirect storage since we've arrived at the destination
+      localStorage.removeItem('redirectAfterLogin');
       // Set default displayName to user's username (parse from localStorage if currentUser not yet ready)
       try {
         const user = JSON.parse(storedUser);

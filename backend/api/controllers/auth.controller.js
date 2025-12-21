@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
-const { sendVerificationEmail } = require("../config/email");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("../config/email");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret_change_me";
@@ -138,7 +138,8 @@ async function login(req, res) {
                 user: {
                     userId: user._id.toString(),
                     email: user.email,
-                    username: user.username
+                    username: user.username,
+                    avatar: user.avatar || 'avatar-1'
                 }
             }
         });
@@ -190,22 +191,36 @@ async function forgotPassword(req, res) {
         const { email } = req.body || {};
 
         if (!email || typeof email !== "string" || email.trim() === "") {
-            return res.status(400).json({ success: false, error: "Missing email" });
+            return res.status(400).json({ success: false, error: "missing_email" });
         }
 
         const normalizedEmail = email.toLowerCase();
-        const user = await User.findOne({ email: normalizedEmail }).select("_id email");
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
-            return res.status(200).json({ success: false, data: { message: "No user found with that email." } });
+            // Return success even if user not found to prevent email enumeration
+            return res.status(200).json({ success: true, data: { message: "If an account exists, reset instructions have been sent." } });
         }
 
-        // TODO: Generate a reset token and send email when email infrastructure is ready.
+        // Generate reset code
+        const resetCode = generateVerificationCode();
+        const resetExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY);
 
-        return res.status(200).json({ success: true, data: { message: "Reset instructions sent." } });
+        // Save reset code to user
+        user.password_reset_code = resetCode;
+        user.password_reset_expires = resetExpires;
+        await user.save();
+
+        // Send reset email
+        await sendPasswordResetEmail(user.email, user.username, resetCode);
+
+        return res.status(200).json({
+            success: true,
+            data: { message: "If an account exists, reset instructions have been sent." }
+        });
     } catch (error) {
         console.error("Forgot password error:", error);
-        return res.status(500).json({ success: false, error: "Server error, please try again later." });
+        return res.status(500).json({ success: false, error: "server_error" });
     }
 }
 
@@ -355,4 +370,56 @@ async function refreshToken(req, res) {
     }
 }
 
-module.exports = { register, login, logout, forgotPassword, refreshToken, verifyEmail, resendVerificationCode };
+// Reset password with code
+async function resetPassword(req, res) {
+    try {
+        const { email, code, newPassword } = req.body || {};
+
+        if (!email || typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ success: false, error: "missing_email" });
+        }
+
+        if (!code || typeof code !== "string" || code.trim() === "") {
+            return res.status(400).json({ success: false, error: "missing_code" });
+        }
+
+        if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: "password_too_short" });
+        }
+
+        const normalizedEmail = email.toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
+
+        if (!user) {
+            return res.status(400).json({ success: false, error: "invalid_code" });
+        }
+
+        // Check if reset code exists and matches
+        if (!user.password_reset_code || user.password_reset_code !== code.toUpperCase()) {
+            return res.status(400).json({ success: false, error: "invalid_code" });
+        }
+
+        // Check if code has expired
+        if (!user.password_reset_expires || new Date() > user.password_reset_expires) {
+            return res.status(400).json({ success: false, error: "code_expired" });
+        }
+
+        // Hash new password and save
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        user.passwordHash = passwordHash;
+        user.password_reset_code = null;
+        user.password_reset_expires = null;
+        await user.save();
+
+        console.log(`[PASSWORD RESET] Password reset successful for ${user.email}`);
+
+        return res.status(200).json({
+            success: true,
+            data: { message: "Password has been reset successfully." }
+        });
+    } catch (error) {
+        console.error("Reset password error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+module.exports = { register, login, logout, forgotPassword, resetPassword, refreshToken, verifyEmail, resendVerificationCode };

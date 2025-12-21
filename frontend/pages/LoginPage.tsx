@@ -22,13 +22,17 @@ export const LoginPage = () => {
   const handleLoginSubmit = async (email: string, password: string) => {
     try {
       await login(email, password);
-      const redirectPath = localStorage.getItem('redirectAfterLogin');
-      if (redirectPath) {
-        localStorage.removeItem('redirectAfterLogin');
-        navigate(redirectPath);
-      } else {
-        navigate('/dashboard');
-      }
+      // Use setTimeout to ensure React state is fully updated before navigating
+      // This prevents the route guards from interfering with the redirect
+      setTimeout(() => {
+        const redirectPath = localStorage.getItem('redirectAfterLogin');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectPath, { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      }, 10);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       if (message === 'email_not_verified') {
@@ -57,14 +61,16 @@ export const LoginPage = () => {
       setPendingEmail('');
       setPendingPassword('');
       setVerificationCode('');
-      // Redirect to dashboard
-      const redirectPath = localStorage.getItem('redirectAfterLogin');
-      if (redirectPath) {
-        localStorage.removeItem('redirectAfterLogin');
-        navigate(redirectPath);
-      } else {
-        navigate('/dashboard');
-      }
+      // Redirect with setTimeout to ensure state is updated
+      setTimeout(() => {
+        const redirectPath = localStorage.getItem('redirectAfterLogin');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectPath, { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      }, 10);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Verification failed. Please try again.';
       if (message === 'invalid_code') setError('Invalid verification code.');

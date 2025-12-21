@@ -6,6 +6,7 @@ import { Button } from '../UIComponents';
 import { QuickGroupList } from './QuickGroupList';
 import { CreateGroupModal } from '../groups/CreateGroupModal';
 import { GlobalAddExpenseModal } from '../expenses/GlobalAddExpenseModal';
+import { getAvatarUrl } from '../../utils/avatars';
 import type { GroupSummary } from '../../types';
 
 interface LayoutProps {
@@ -161,9 +162,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="p-4 border-t border-gray-200 space-y-3">
         <div className="flex items-center gap-3 px-2">
           <img
-            src={currentUser?.avatar}
+            src={getAvatarUrl(currentUser?.avatar)}
             alt=""
-            className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+            className="w-10 h-10 rounded-full border-2 border-white shadow-sm bg-gray-100"
           />
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold text-gray-900 truncate">{currentUser?.name}</p>

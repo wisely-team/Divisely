@@ -21,10 +21,21 @@ const GroupsRedirect = () => {
 const AppContent = () => {
   const { currentUser } = useApp();
 
+  // Helper to get redirect path for logged in users
+  // Note: We don't remove redirectAfterLogin here because LoginPage handles that
+  // after successful navigation. This prevents race conditions.
+  const getRedirectPath = () => {
+    const redirectAfterLogin = localStorage.getItem('redirectAfterLogin');
+    if (redirectAfterLogin) {
+      return redirectAfterLogin;
+    }
+    return '/dashboard';
+  };
+
   return (
     <Routes>
-      <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to={getRedirectPath()} />} />
+      <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to={getRedirectPath()} />} />
       <Route path="/forgot-password" element={!currentUser ? <ForgotPasswordPage /> : <Navigate to="/dashboard" />} />
       <Route path="/join/:groupId" element={<JoinGroupPage />} />
       <Route

@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 export interface UpdateProfilePayload {
   username?: string;
   email?: string;
+  avatar?: string;
   currentPassword?: string;
   newPassword?: string;
 }
@@ -13,6 +14,7 @@ export interface UserProfileResponse {
   userId: string;
   email: string;
   username: string;
+  avatar?: string;
   updatedAt?: string;
 }
 
@@ -48,5 +50,18 @@ export const userService = {
     });
 
     return handleResponse<UserProfileResponse>(response, 'update_profile_failed');
+  },
+
+  async deleteAccount(password: string, accessToken: string) {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/users/me`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ password })
+    });
+
+    return handleResponse<{ message: string }>(response, 'delete_account_failed');
   }
 };
