@@ -294,14 +294,19 @@ async function getGroupBalances(req, res) {
         }));
 
         const responseMemberBalances = Array.from(balancesMap.entries())
+            .filter(([userId]) => userId != null) // Filter out null/undefined keys
             .sort(([idA, balA], [idB, balB]) => {
                 if (balB !== balA) return balB - balA;
-                return idA.localeCompare(idB);
+                // Safely compare IDs, handling undefined cases
+                if (!idA && !idB) return 0;
+                if (!idA) return 1;
+                if (!idB) return -1;
+                return String(idA).localeCompare(String(idB));
             })
             .map(([userId, balance]) => ({
-                userId,
-                username: getInfo(userId).username,
-                displayName: getInfo(userId).displayName,
+                userId: userId || 'unknown',
+                username: getInfo(userId).username || 'Unknown',
+                displayName: getInfo(userId).displayName || 'Unknown',
                 balance: Math.round(balance * 100) / 100
             }));
 
