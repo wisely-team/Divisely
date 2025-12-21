@@ -551,6 +551,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setExpenses(prev => [...prev, normalizedExpense]);
+
+      // Refresh balances after adding expense
+      try {
+        const balanceResp = await balanceService.getGroupBalances(newExpenseData.groupId, accessToken);
+        const simplified = (balanceResp.simplifiedDebts || []).map(d => ({
+          from: d.from.userId,
+          to: d.to.userId,
+          amount: d.amount
+        }));
+        setGroupBalances(prev => {
+          const others = prev.filter(b => b.groupId !== newExpenseData.groupId);
+          return [...others, { groupId: newExpenseData.groupId, debts: simplified }];
+        });
+      } catch (error) {
+        console.error('Failed to refresh balances after adding expense', error);
+      }
+
       return normalizedExpense;
     } catch (error) {
       console.error('Failed to add expense', error);
@@ -570,14 +587,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      // Find the expense to get its groupId before deletion
+      const expenseToDelete = expenses.find(e => e.id === id);
+      const groupId = expenseToDelete?.groupId;
+
       await expenseService.deleteExpense(id, accessToken);
       setExpenses(prev => prev.filter(e => e.id !== id));
+
+      // Refresh balances after deleting expense
+      if (groupId) {
+        try {
+          const balanceResp = await balanceService.getGroupBalances(groupId, accessToken);
+          const simplified = (balanceResp.simplifiedDebts || []).map(d => ({
+            from: d.from.userId,
+            to: d.to.userId,
+            amount: d.amount
+          }));
+          setGroupBalances(prev => {
+            const others = prev.filter(b => b.groupId !== groupId);
+            return [...others, { groupId: groupId, debts: simplified }];
+          });
+        } catch (error) {
+          console.error('Failed to refresh balances after deleting expense', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to delete expense', error);
       const message = error instanceof Error ? error.message : 'delete_expense_failed';
       throw new Error(message);
     }
-  }, [currentUser]);
+  }, [currentUser, expenses]);
 
   const deleteSettlement = useCallback(async (id: string) => {
     const accessToken = localStorage.getItem('accessToken');
@@ -586,14 +625,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      // Find the settlement to get its groupId before deletion
+      const settlementToDelete = settlements.find(s => s.id === id);
+      const groupId = settlementToDelete?.groupId;
+
       await settlementService.deleteSettlement(id, accessToken);
       setSettlements(prev => prev.filter(s => s.id !== id));
+
+      // Refresh balances after deleting settlement
+      if (groupId) {
+        try {
+          const balanceResp = await balanceService.getGroupBalances(groupId, accessToken);
+          const simplified = (balanceResp.simplifiedDebts || []).map(d => ({
+            from: d.from.userId,
+            to: d.to.userId,
+            amount: d.amount
+          }));
+          setGroupBalances(prev => {
+            const others = prev.filter(b => b.groupId !== groupId);
+            return [...others, { groupId: groupId, debts: simplified }];
+          });
+        } catch (error) {
+          console.error('Failed to refresh balances after deleting settlement', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to delete settlement', error);
       const message = error instanceof Error ? error.message : 'delete_settlement_failed';
       throw new Error(message);
     }
-  }, []);
+  }, [settlements]);
 
   // System calculates simplified balances
   const getGroupBalances = (groupId: string) => {
