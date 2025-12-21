@@ -7,6 +7,7 @@ const groupRoutes = require("./group.routes");
 const expenseRoutes = require("./expense.routes");
 const settlementRoutes = require("./settlement.routes");
 const activityRoutes = require("./activity.routes");
+const geminiRoutes = require("./gemini.routes");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -14,6 +15,7 @@ router.use("/groups", groupRoutes);
 router.use("/", expenseRoutes);
 router.use("/", settlementRoutes);
 router.use("/", activityRoutes);
+router.use("/gemini", geminiRoutes);
 
 router.get("/", (req, res) => {
     res.json({
