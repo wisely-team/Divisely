@@ -1,7 +1,7 @@
 import { Expense, Group, User } from "../types";
 import { fetchWithTokenRefresh } from "../utils/tokenRefresh";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 interface ReceiptData {
   description: string;
@@ -33,7 +33,7 @@ export const analyzeGroupFinances = async (
       }))
     };
 
-    const response = await fetchWithTokenRefresh(`${API_URL}/api/gemini/analyze-finances`, {
+    const response = await fetchWithTokenRefresh(`${API_URL}/gemini/analyze-finances`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,7 +66,7 @@ export const analyzeReceiptImage = async (base64Image: string): Promise<ReceiptD
       return null;
     }
 
-    const response = await fetchWithTokenRefresh(`${API_URL}/api/gemini/analyze-receipt`, {
+    const response = await fetchWithTokenRefresh(`${API_URL}/gemini/analyze-receipt`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
