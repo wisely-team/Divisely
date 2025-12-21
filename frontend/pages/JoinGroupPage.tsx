@@ -12,6 +12,16 @@ export const JoinGroupPage: React.FC = () => {
   const [displayName, setDisplayName] = useState<string>('');
   const hasCheckedRef = React.useRef(false);
 
+  const getStoredUser = () => {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as { username?: string; name?: string };
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       if (hasCheckedRef.current) return;
@@ -34,10 +44,17 @@ export const JoinGroupPage: React.FC = () => {
       }
 
       const token = localStorage.getItem('accessToken');
-      const storedUser = localStorage.getItem('user');
-      if (!token || !storedUser) {
-        // Store the intended destination and redirect to login
-        // Use localStorage so it persists across tabs
+      if (!token) {
+        // Not authenticated - store redirect and go to login
+        localStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
+        navigate('/login');
+        return;
+      }
+
+      // On a fresh tab load, AppContext may not have hydrated currentUser yet.
+      // If we already have a token, use localStorage as a fallback instead of bouncing to /login.
+      const effectiveUser = currentUser || getStoredUser();
+      if (!effectiveUser) {
         localStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
         navigate('/login');
         return;
@@ -46,13 +63,8 @@ export const JoinGroupPage: React.FC = () => {
       hasCheckedRef.current = true;
       // Clear the redirect storage since we've arrived at the destination
       localStorage.removeItem('redirectAfterLogin');
-      // Set default displayName to user's username (parse from localStorage if currentUser not yet ready)
-      try {
-        const user = JSON.parse(storedUser);
-        setDisplayName(user.username || user.name || currentUser?.username || currentUser?.name || '');
-      } catch {
-        setDisplayName(currentUser?.username || currentUser?.name || '');
-      }
+      // Set default displayName from user data
+      setDisplayName(effectiveUser.username || effectiveUser.name || '');
       setStatus('input');
       setMessage('Enter your name for this group');
     };

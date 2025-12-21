@@ -69,6 +69,22 @@ async function register(req, res) {
         });
     } catch (error) {
         console.error("Register error:", error);
+
+        // Mongo duplicate key error
+        if (error && (error.code === 11000 || error.codeName === "DuplicateKey")) {
+            const dupField = Object.keys(error.keyPattern || error.keyValue || {})[0];
+            if (dupField === "email") {
+                return res.status(400).json({ success: false, error: "email_exists" });
+            }
+            if (dupField === "username") {
+                return res.status(400).json({ success: false, error: "username_exists" });
+            }
+            if (dupField === "displayName") {
+                return res.status(400).json({ success: false, error: "displayname_exists" });
+            }
+            return res.status(400).json({ success: false, error: "duplicate_key" });
+        }
+
         return res.status(500).json({
             success: false,
             error: "server_error"
