@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Lock, Bell, CheckCircle, AlertCircle, X, Trash2 } from 'lucide-react';
+import { User, Mail, Lock, CheckCircle, AlertCircle, X, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input } from '../components/UIComponents';
 import { useApp } from '../context/AppContext';
@@ -8,7 +8,7 @@ import { AVATAR_OPTIONS, getAvatarUrl, AvatarId } from '../utils/avatars';
 export default function Settings() {
   const { currentUser, updateProfile, deleteAccount } = useApp();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'account'>('profile');
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -44,14 +44,6 @@ export default function Settings() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  // Notifications state
-  const [notifications, setNotifications] = useState({
-    emailExpenses: true,
-    emailPayments: true,
-    emailReminders: false,
-    pushNotifications: true,
-  });
 
   const handleProfileSave = async () => {
     setProfileError(null);
@@ -151,11 +143,6 @@ export default function Settings() {
     }
   };
 
-  const handleNotificationsSave = () => {
-    // TODO: Implement notifications update API call
-    console.log('Saving notifications:', notifications);
-  };
-
   const handleDeleteAccount = async () => {
     setDeleteError(null);
 
@@ -190,7 +177,6 @@ export default function Settings() {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'account', label: 'Account', icon: Lock },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   return (
@@ -532,85 +518,6 @@ export default function Settings() {
                 </div>
               </div>
             )}
-          </Card>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Notification Preferences</h2>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Email - New Expenses</h3>
-                  <p className="text-sm text-gray-500">Get notified when someone adds a new expense</p>
-                </div>
-                <label className="relative inline-block w-12 h-6">
-                  <input
-                    type="checkbox"
-                    checked={notifications.emailExpenses}
-                    onChange={(e) => setNotifications({ ...notifications, emailExpenses: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-500 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Email - Payments</h3>
-                  <p className="text-sm text-gray-500">Get notified when someone settles up</p>
-                </div>
-                <label className="relative inline-block w-12 h-6">
-                  <input
-                    type="checkbox"
-                    checked={notifications.emailPayments}
-                    onChange={(e) => setNotifications({ ...notifications, emailPayments: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-500 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Email - Reminders</h3>
-                  <p className="text-sm text-gray-500">Get weekly reminders about pending balances</p>
-                </div>
-                <label className="relative inline-block w-12 h-6">
-                  <input
-                    type="checkbox"
-                    checked={notifications.emailReminders}
-                    onChange={(e) => setNotifications({ ...notifications, emailReminders: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-500 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-900">Push Notifications</h3>
-                  <p className="text-sm text-gray-500">Receive push notifications in your browser</p>
-                </div>
-                <label className="relative inline-block w-12 h-6">
-                  <input
-                    type="checkbox"
-                    checked={notifications.pushNotifications}
-                    onChange={(e) => setNotifications({ ...notifications, pushNotifications: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-500 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                </label>
-              </div>
-
-              <div className="pt-4">
-                <Button onClick={handleNotificationsSave}>
-                  Save Preferences
-                </Button>
-              </div>
-            </div>
           </Card>
         )}
       </div>
