@@ -203,39 +203,55 @@ async function logout(req, res) {
 }
 
 async function forgotPassword(req, res) {
+    console.log('[FORGOT PASSWORD] Request received');
     try {
         const { email } = req.body || {};
+        console.log(`[FORGOT PASSWORD] Email provided: ${email ? 'yes' : 'no'}`);
 
         if (!email || typeof email !== "string" || email.trim() === "") {
+            console.log('[FORGOT PASSWORD] Validation failed: missing or invalid email');
             return res.status(400).json({ success: false, error: "missing_email" });
         }
 
         const normalizedEmail = email.toLowerCase();
+        console.log(`[FORGOT PASSWORD] Looking up user: ${normalizedEmail}`);
         const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
+            console.log('[FORGOT PASSWORD] User not found (returning success to prevent enumeration)');
             // Return success even if user not found to prevent email enumeration
             return res.status(200).json({ success: true, data: { message: "If an account exists, reset instructions have been sent." } });
         }
 
+        console.log(`[FORGOT PASSWORD] User found: ${user.username} (${user._id})`);
+
         // Generate reset code
         const resetCode = generateVerificationCode();
         const resetExpires = new Date(Date.now() + VERIFICATION_CODE_EXPIRY);
+        console.log(`[FORGOT PASSWORD] Generated reset code, expires: ${resetExpires}`);
 
         // Save reset code to user
         user.password_reset_code = resetCode;
         user.password_reset_expires = resetExpires;
         await user.save();
+        console.log('[FORGOT PASSWORD] Reset code saved to database');
 
         // Send reset email
-        await sendPasswordResetEmail(user.email, user.username, resetCode);
+        console.log(`[FORGOT PASSWORD] Attempting to send email to: ${user.email}`);
+        const emailSent = await sendPasswordResetEmail(user.email, user.username, resetCode);
+        console.log(`[FORGOT PASSWORD] Email send result: ${emailSent ? 'SUCCESS' : 'FAILED'}`);
+
+        if (!emailSent) {
+            console.error('[FORGOT PASSWORD] Email failed to send, but returning success to user');
+        }
 
         return res.status(200).json({
             success: true,
             data: { message: "If an account exists, reset instructions have been sent." }
         });
     } catch (error) {
-        console.error("Forgot password error:", error);
+        console.error("[FORGOT PASSWORD] Error:", error);
+        console.error("[FORGOT PASSWORD] Error stack:", error.stack);
         return res.status(500).json({ success: false, error: "server_error" });
     }
 }
