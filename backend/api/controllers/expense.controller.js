@@ -3,13 +3,27 @@ const Expense = require("../models/expense.model");
 const Group = require("../models/group.model");
 const User = require("../models/user.model");
 
+function normalizePaidAt(raw) {
+    let paidAt = raw;
+    paidAt = typeof paidAt === "string" ? paidAt.trim().split("T")[0] : paidAt;
+    return paidAt;
+}
+
+function buildBalanceUpdatesFromSplits(payerId, splits) {
+    const updates = new Map();
+    for (const split of splits) {
+        const amount = Number(split.amount) || 0;
+        updates.set(split.userId, (updates.get(split.userId) || 0) - amount);
+        updates.set(payerId, (updates.get(payerId) || 0) + amount);
+    }
+    return updates;
+}
+
 async function createExpense(req, res) {
     try {
         const requesterId = req.user?.userId;
         const { groupId, description, amount, payerId, splits } = req.body || {};
-        let paidAt = req.body?.paidAt || req.body?.paid_at || req.body?.["paid at"];
-        // trim paidAt to be only day
-        paidAt = typeof paidAt === "string" ? paidAt.trim().split("T")[0] : paidAt;
+        const paidAt = normalizePaidAt(req.body?.paidAt || req.body?.paid_at || req.body?.["paid at"]);
 
         if (!requesterId) {
             return res.status(401).json({ success: false, error: "unauthorized" });
@@ -185,6 +199,17 @@ async function getGroupExpenses(req, res) {
             const amount = Number(expense.amount) || 0;
             const isBorrow = payerId !== requesterId;
             const myShare = requesterSplitAmount;
+            const shares = (expense.debtors || [])
+                .map(d => {
+                    const userId = d.user?.toString();
+                    if (!userId) return null;
+                    return {
+                        userId,
+                        displayName: getUserName(userId),
+                        amount: Number(d.amount) || 0
+                    };
+                })
+                .filter(Boolean);
 
             return {
                 expenseId: expense._id.toString(),
@@ -194,6 +219,7 @@ async function getGroupExpenses(req, res) {
                 payerName,
                 my_share: myShare,
                 is_borrow: isBorrow,
+                shares,
                 createdAt: expense.createdAt ? expense.createdAt.toISOString() : undefined,
                 paidTime: expense.paid_time ? expense.paid_time.toISOString() : undefined
             };
@@ -202,6 +228,92 @@ async function getGroupExpenses(req, res) {
         return res.status(200).json({ success: true, data });
     } catch (error) {
         console.error("Get expenses error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+async function getExpense(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { expenseId } = req.params;
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!expenseId || !mongoose.Types.ObjectId.isValid(expenseId)) {
+            return res.status(400).json({ success: false, error: "invalid_expense_id" });
+        }
+
+        const expense = await Expense.findById(expenseId).lean();
+        if (!expense) {
+            return res.status(404).json({ success: false, error: "expense_not_found" });
+        }
+
+        const groupId = expense.group?.toString();
+        if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+            return res.status(400).json({ success: false, error: "expense_group_missing" });
+        }
+
+        const group = await Group.findById(groupId).select("members").lean();
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
+        if (!groupMemberIds.includes(requesterId)) {
+            return res.status(403).json({ success: false, error: "You are not authorized to view this expense" });
+        }
+
+        const userIds = new Set();
+        if (expense.paid_by) userIds.add(expense.paid_by.toString());
+        (expense.debtors || []).forEach(d => d?.user && userIds.add(d.user.toString()));
+
+        const users = await User.find({ _id: { $in: Array.from(userIds) } })
+            .select("displayName email")
+            .lean();
+
+        const getUserName = (userId) => {
+            const user = users.find(u => u._id.toString() === userId);
+            return user?.displayName || user?.email || "Unknown";
+        };
+
+        const payerId = expense.paid_by?.toString();
+        const payerName = payerId ? getUserName(payerId) : undefined;
+        const splitForRequester = (expense.debtors || []).find(d => d.user?.toString() === requesterId);
+        const requesterSplitAmount = splitForRequester ? Number(splitForRequester.amount) : 0;
+        const amount = Number(expense.amount) || 0;
+        const isBorrow = payerId !== requesterId;
+        const shares = (expense.debtors || [])
+            .map(d => {
+                const userId = d.user?.toString();
+                if (!userId) return null;
+                return {
+                    userId,
+                    displayName: getUserName(userId),
+                    amount: Number(d.amount) || 0
+                };
+            })
+            .filter(Boolean);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                expenseId: expense._id.toString(),
+                groupId,
+                description: expense.description,
+                amount,
+                payerId,
+                payerName,
+                my_share: requesterSplitAmount,
+                is_borrow: isBorrow,
+                shares,
+                createdAt: expense.createdAt ? expense.createdAt.toISOString() : undefined,
+                paidTime: expense.paid_time ? expense.paid_time.toISOString() : undefined
+            }
+        });
+    } catch (error) {
+        console.error("Get expense error:", error);
         return res.status(500).json({ success: false, error: "server_error" });
     }
 }
@@ -286,4 +398,162 @@ async function deleteExpense(req, res) {
     }
 }
 
-module.exports = { createExpense, getGroupExpenses, deleteExpense };
+async function updateExpense(req, res) {
+    try {
+        const requesterId = req.user?.userId;
+        const { expenseId } = req.params;
+        const { groupId, description, amount, payerId, splits } = req.body || {};
+        const paidAt = normalizePaidAt(req.body?.paidAt || req.body?.paid_at || req.body?.["paid at"]);
+
+        if (!requesterId) {
+            return res.status(401).json({ success: false, error: "unauthorized" });
+        }
+
+        if (!expenseId || !mongoose.Types.ObjectId.isValid(expenseId)) {
+            return res.status(400).json({ success: false, error: "invalid_expense_id" });
+        }
+
+        const existingExpense = await Expense.findById(expenseId);
+        if (!existingExpense) {
+            return res.status(404).json({ success: false, error: "expense_not_found" });
+        }
+
+        const targetGroupId = groupId || existingExpense.group?.toString();
+        const amountNum = Number(amount);
+        if (!targetGroupId || !description || !amountNum || !payerId || !Array.isArray(splits)) {
+            return res.status(400).json({ success: false, error: "missing_fields" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(targetGroupId) || !mongoose.Types.ObjectId.isValid(payerId)) {
+            return res.status(400).json({ success: false, error: "invalid_ids" });
+        }
+
+        if (!Number.isFinite(amountNum) || amountNum <= 0) {
+            return res.status(400).json({ success: false, error: "invalid_amount" });
+        }
+
+        const group = await Group.findById(targetGroupId).select("members owner memberBalances");
+        if (!group) {
+            return res.status(404).json({ success: false, error: "group_not_found" });
+        }
+
+        const groupMemberIds = Array.isArray(group.members) ? group.members.map(m => (m.user || m).toString()) : [];
+        const requesterInGroup = groupMemberIds.includes(requesterId);
+        if (!requesterInGroup) {
+            return res.status(403).json({ success: false, error: "You are not authorized to update an expense in this group" });
+        }
+
+        // Authorization: group owner or original payer can update
+        const isGroupOwner = group.owner?.toString() === requesterId;
+        const isOriginalPayer = existingExpense.paid_by?.toString() === requesterId;
+        if (!isGroupOwner && !isOriginalPayer) {
+            return res.status(403).json({ success: false, error: "You are not authorized to update this expense" });
+        }
+
+        if (!groupMemberIds.includes(payerId)) {
+            return res.status(400).json({ success: false, error: "payer_not_in_group" });
+        }
+
+        const validSplits = splits
+            .filter(s => s && typeof s.userId === "string" && mongoose.Types.ObjectId.isValid(s.userId) && Number.isFinite(Number(s.amount)));
+
+        if (!validSplits.length) {
+            return res.status(400).json({ success: false, error: "invalid_splits" });
+        }
+
+        for (const split of validSplits) {
+            if (!groupMemberIds.includes(split.userId)) {
+                return res.status(400).json({ success: false, error: "split_user_not_in_group" });
+            }
+        }
+
+        const totalSplit = validSplits.reduce((sum, s) => sum + Number(s.amount), 0);
+        if (Math.abs(totalSplit - amountNum) > 0.01) {
+            return res.status(400).json({ success: false, error: "split_total_mismatch" });
+        }
+
+        // Revert balances from old expense, then apply new balances
+        const revertMap = new Map();
+        (existingExpense.debtors || []).forEach(debtor => {
+            if (!debtor?.user) return;
+            const debtorId = debtor.user.toString();
+            const amt = Number(debtor.amount) || 0;
+            revertMap.set(debtorId, (revertMap.get(debtorId) || 0) + amt);
+            revertMap.set(existingExpense.paid_by.toString(), (revertMap.get(existingExpense.paid_by.toString()) || 0) - amt);
+        });
+
+        const applyMap = buildBalanceUpdatesFromSplits(payerId, validSplits);
+
+        const currentBalances = new Map();
+        (group.memberBalances || []).forEach(entry => {
+            if (!entry?.userId) {
+                return;
+            }
+            currentBalances.set(entry.userId.toString(), Number(entry.balance) || 0);
+        });
+
+        groupMemberIds.forEach(memberId => {
+            if (!currentBalances.has(memberId)) {
+                currentBalances.set(memberId, 0);
+            }
+        });
+
+        for (const [userId, delta] of revertMap.entries()) {
+            const existing = currentBalances.get(userId) || 0;
+            currentBalances.set(userId, existing + delta);
+        }
+
+        for (const [userId, delta] of applyMap.entries()) {
+            const existing = currentBalances.get(userId) || 0;
+            currentBalances.set(userId, existing + delta);
+        }
+
+        group.memberBalances = Array.from(currentBalances.entries()).map(([userId, balance]) => ({ userId, balance }));
+        await group.save();
+        await existingExpense.deleteOne();
+
+        const userDocs = await User.find({ _id: { $in: Array.from(new Set([payerId, ...validSplits.map(s => s.userId)])) } }).select("displayName email");
+        const payer = userDocs.find(u => u._id.toString() === payerId);
+
+        const newExpense = await Expense.create({
+            group: targetGroupId,
+            paid_by: payerId,
+            description: description.trim(),
+            amount: amountNum,
+            paid_time: paidAt ? new Date(paidAt) : undefined,
+            debtors: validSplits.map(s => ({
+                user: s.userId,
+                amount: Number(s.amount)
+            })),
+            createdAt: existingExpense.createdAt // preserve original creation time
+        });
+
+        const responseSplits = validSplits.map(s => {
+            const user = userDocs.find(u => u._id.toString() === s.userId);
+            return {
+                userId: s.userId,
+                displayName: user?.displayName || user?.email,
+                amount: Number(s.amount)
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                expenseId: newExpense._id.toString(),
+                groupId: targetGroupId,
+                description: newExpense.description,
+                amount: newExpense.amount,
+                payerId,
+                payerName: payer?.displayName || payer?.email,
+                splits: responseSplits,
+                createdAt: newExpense.createdAt?.toISOString()
+            }
+        });
+    } catch (error) {
+        console.error("Update expense error:", error);
+        return res.status(500).json({ success: false, error: "server_error" });
+    }
+}
+
+module.exports = { createExpense, getGroupExpenses, getExpense, deleteExpense, updateExpense };

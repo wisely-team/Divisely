@@ -14,6 +14,25 @@ import { MemberList } from '../components/groups/MemberList';
 import { InviteLink } from '../components/groups/InviteLink';
 import { Expense } from '../types';
 import { groupService } from '../services/groupService';
+import { expenseService } from '../services/expenseService';
+
+const normalizeExpenseSplits = (details: {
+  shares?: Array<{ userId?: string; amount?: number }>;
+  splits?: Array<{ userId?: string; amount?: number }>;
+}) => {
+  const source = Array.isArray(details.shares) && details.shares.length
+    ? details.shares
+    : (Array.isArray(details.splits) ? details.splits : []);
+
+  return source
+    .map(share => {
+      const userId = share?.userId;
+      if (!userId) return null;
+      const amount = typeof share.amount === 'number' ? share.amount : Number(share.amount) || 0;
+      return { userId, amount };
+    })
+    .filter(Boolean) as { userId: string; amount: number }[];
+};
 
 export const GroupDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +47,7 @@ export const GroupDetailsPage = () => {
     loadGroupBalances,
     getGroupBalances,
     addExpense,
+    editExpense,
     deleteExpense,
     deleteSettlement,
     settleUp,
@@ -67,6 +87,8 @@ export const GroupDetailsPage = () => {
 
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'manage'>('expenses');
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showEditExpense, setShowEditExpense] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [showAI, setShowAI] = useState(false);
   const [showSettleUp, setShowSettleUp] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -269,6 +291,81 @@ export const GroupDetailsPage = () => {
     }
   };
 
+  const handleStartEditExpense = async (expenseItem: {
+    id: string;
+    payerId?: string;
+    description?: string;
+    amount: number;
+    date: string;
+    createdAt?: string;
+    splits?: { userId: string; amount: number }[];
+    myShare?: number;
+    isBorrow?: boolean;
+  }) => {
+    // expenseItem comes from ExpenseList; prefer full expense from state for splits
+    const exp = groupExpenses.find(e => e.id === expenseItem.id);
+    const baseExpense = exp || ({
+      id: expenseItem.id,
+      groupId: group?.id || '',
+      payerId: expenseItem.payerId || '',
+      description: expenseItem.description || '',
+      amount: expenseItem.amount || 0,
+      date: expenseItem.date,
+      createdAt: expenseItem.createdAt,
+      splits: expenseItem.splits || [],
+      splitType: 'CUSTOM',
+      myShare: expenseItem.myShare,
+      isBorrow: expenseItem.isBorrow
+    } as Expense);
+
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setExpenseToEdit(baseExpense);
+      setShowEditExpense(true);
+      return;
+    }
+
+    try {
+      const details = await expenseService.getExpense(baseExpense.id, token);
+      const normalizedSplits = normalizeExpenseSplits(details);
+
+      const resolvedMyShare = currentUser
+        ? normalizedSplits.find(s => s.userId === currentUser.id)?.amount
+        : undefined;
+      const resolvedAmount = typeof details.amount === 'number' ? details.amount : baseExpense.amount;
+      const resolvedDate = details.paidTime || details.createdAt || baseExpense.date;
+
+      setExpenseToEdit({
+        ...baseExpense,
+        groupId: details.groupId || baseExpense.groupId,
+        payerId: details.payerId || baseExpense.payerId,
+        description: details.description ?? baseExpense.description,
+        amount: resolvedAmount,
+        date: resolvedDate,
+        splits: normalizedSplits.length > 0 ? normalizedSplits : baseExpense.splits,
+        myShare: resolvedMyShare ?? (typeof details.my_share === 'number' ? details.my_share : baseExpense.myShare)
+      });
+    } catch (error) {
+      console.error('Failed to fetch expense details', error);
+      setExpenseToEdit(baseExpense);
+    }
+
+    setShowEditExpense(true);
+  };
+
+  const handleEditExpense = async (expense: Omit<Expense, 'id'>) => {
+    if (!expenseToEdit) return;
+    try {
+      await editExpense(expenseToEdit.id, { ...expense, createdAt: expenseToEdit.createdAt });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to edit expense';
+      alert(message);
+    } finally {
+      setShowEditExpense(false);
+      setExpenseToEdit(null);
+    }
+  };
+
   const isOwner = ownerId === currentUser?.id;
 
   return (
@@ -328,6 +425,7 @@ export const GroupDetailsPage = () => {
             users={groupUsers}
             onDeleteExpense={handleDeleteExpense}
             onDeleteSettlement={handleDeleteSettlement}
+            onEditExpense={handleStartEditExpense}
             currentUserId={currentUser?.id}
             isLoadingUsers={isLoadingMembers}
           />
@@ -442,6 +540,21 @@ export const GroupDetailsPage = () => {
         currentUserId={currentUser?.id || ''}
         onAddExpense={handleAddExpense}
         groupId={group.id}
+      />
+      <AddExpenseModal
+        key={expenseToEdit?.id || 'edit-expense'}
+        isOpen={showEditExpense}
+        onClose={() => {
+          setShowEditExpense(false);
+          setExpenseToEdit(null);
+        }}
+        groupUsers={groupUsers}
+        currentUserId={currentUser?.id || ''}
+        onAddExpense={handleAddExpense}
+        onSubmitExpense={handleEditExpense}
+        groupId={group.id}
+        mode="edit"
+        initialExpense={expenseToEdit || undefined}
       />
 
       <SettleUpModal

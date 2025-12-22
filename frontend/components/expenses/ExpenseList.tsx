@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, DollarSign, Trash2 } from 'lucide-react';
+import { Calendar, DollarSign, Trash2, Pencil } from 'lucide-react';
 import { Expense, Settlement, User } from '../../types';
 import { Card } from '../UIComponents';
 
@@ -12,6 +12,7 @@ interface ExpenseListProps {
   users: User[];
   onDeleteExpense: (expenseId: string) => Promise<void> | void;
   onDeleteSettlement?: (settlementId: string) => Promise<void> | void;
+  onEditExpense?: (expense: TransactionItem) => void;
   currentUserId?: string;
   isLoadingUsers?: boolean;
 }
@@ -41,7 +42,7 @@ const SkeletonExpenseItem: React.FC = () => (
   </div>
 );
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, onDeleteExpense, onDeleteSettlement, currentUserId, isLoadingUsers = false }) => {
+export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, onDeleteExpense, onDeleteSettlement, onEditExpense, currentUserId, isLoadingUsers = false }) => {
   // Show skeleton loading state when user data is being fetched
   if (isLoadingUsers) {
     return (
@@ -152,23 +153,36 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, users, o
                   )}
                   <p className="text-xs text-gray-400 font-medium">{dateString}</p>
                 </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      if (isSettlement) {
-                        await onDeleteSettlement?.(item.id);
-                      } else {
-                        await onDeleteExpense(item.id);
+                <div className="flex items-center gap-2">
+                  {!isSettlement && onEditExpense && (
+                    <button
+                      type="button"
+                      onClick={() => onEditExpense(item)}
+                      className="text-gray-400 hover:text-teal-600 transition-all p-2 hover:bg-teal-50 rounded-lg"
+                      title="Edit expense"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={async () => {
+                      try {
+                        if (isSettlement) {
+                          await onDeleteSettlement?.(item.id);
+                        } else {
+                          await onDeleteExpense(item.id);
+                        }
+                      } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Failed to delete';
+                        alert(message);
                       }
-                    } catch (error) {
-                      const message = error instanceof Error ? error.message : 'Failed to delete';
-                      alert(message);
-                    }
-                  }}
-                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-red-50 rounded-lg"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                    }}
+                    className="text-gray-300 hover:text-red-500 transition-all p-2 hover:bg-red-50 rounded-lg"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           );

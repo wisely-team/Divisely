@@ -20,6 +20,9 @@ interface AddExpenseModalProps {
   currentUserId: string;
   onAddExpense: (expense: Omit<Expense, 'id'>) => Promise<unknown>;
   groupId: string;
+  mode?: 'add' | 'edit';
+  initialExpense?: Expense | null;
+  onSubmitExpense?: (expense: Omit<Expense, 'id'>) => Promise<unknown>;
 }
 
 export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
@@ -28,7 +31,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   groupUsers,
   currentUserId,
   onAddExpense,
-  groupId
+  groupId,
+  mode = 'add',
+  initialExpense,
+  onSubmitExpense
 }) => {
   const [expAmount, setExpAmount] = useState<string>('');
   const [expDate, setExpDate] = useState(new Date().toISOString().split('T')[0]);
@@ -43,24 +49,49 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   // Initialize form when opening modal
   useEffect(() => {
     if (isOpen) {
-      setExpPayer(currentUserId);
-      setExpAmount('');
-      setExpDesc('');
-      setExpDate(new Date().toISOString().split('T')[0]);
-      setExpSplitType('EQUAL');
+      const hasInitial = initialExpense && mode === 'edit';
+      const initialAmount = hasInitial ? initialExpense!.amount : 0;
+      const splitMap = hasInitial
+        ? new Map(initialExpense!.splits.map(s => [s.userId, s.amount]))
+        : new Map<string, number>();
+
+      setExpPayer(hasInitial ? initialExpense!.payerId : currentUserId);
+      setExpAmount(hasInitial ? initialExpense!.amount.toString() : '');
+      setExpDesc(hasInitial ? initialExpense!.description : '');
+      setExpDate(hasInitial ? (initialExpense!.date?.split('T')[0] || initialExpense!.date) : new Date().toISOString().split('T')[0]);
+      setExpSplitType(hasInitial ? initialExpense!.splitType : 'EQUAL');
       setScanError(null);
 
-      // Initialize participants (all checked by default)
-      const initialParticipants = groupUsers.map(u => ({
-        userId: u.id,
-        isChecked: true,
-        shareAmount: 0,
-        sharePercentage: 0
-      }));
+      const initialParticipants = groupUsers.map(u => {
+        const shareAmount = splitMap.get(u.id) || 0;
+        const isChecked = hasInitial ? splitMap.has(u.id) : true;
+        const percentage = hasInitial && initialAmount > 0 ? (shareAmount / initialAmount) * 100 : 0;
+        return {
+          userId: u.id,
+          isChecked,
+          shareAmount,
+          sharePercentage: percentage
+        };
+      });
+
+      if (hasInitial) {
+        const missingSplits = initialExpense!.splits.filter(s => !groupUsers.some(u => u.id === s.userId));
+        missingSplits.forEach(split => {
+          const shareAmount = split.amount;
+          const percentage = initialAmount > 0 ? (shareAmount / initialAmount) * 100 : 0;
+          initialParticipants.push({
+            userId: split.userId,
+            isChecked: true,
+            shareAmount,
+            sharePercentage: percentage
+          });
+        });
+      }
+
       setExpParticipants(initialParticipants);
-      setIsAllSelected(true);
+      setIsAllSelected(initialParticipants.every(p => p.isChecked));
     }
-  }, [isOpen, currentUserId, groupUsers]);
+  }, [isOpen, currentUserId, groupUsers, initialExpense, mode]);
 
   const handleReceiptScan = (data: { description: string; amount: number; date: string }) => {
     setExpDesc(data.description);
@@ -205,7 +236,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     }));
 
     try {
-      await onAddExpense({
+      const submitter = onSubmitExpense || onAddExpense;
+      await submitter({
         groupId,
         payerId: expPayer,
         description: expDesc,
@@ -232,8 +264,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       <div className="flex flex-col max-h-[90vh]">
         {/* Custom Header - Sticky */}
         <div className="bg-white px-8 pt-8 pb-6 flex-shrink-0 sticky top-0 z-10 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900">Add a New Expense</h2>
-          <p className="text-gray-500 mt-1">Fill in the details to add a new expense to the group.</p>
+          <h2 className="text-2xl font-bold text-gray-900">{mode === 'edit' ? 'Edit Expense' : 'Add a New Expense'}</h2>
+          <p className="text-gray-500 mt-1">{mode === 'edit' ? 'Update the details and save changes.' : 'Fill in the details to add a new expense to the group.'}</p>
         </div>
 
         {/* Scrollable Content */}
@@ -380,7 +412,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                       className="w-5 h-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer"
                     />
                     <span className={`text-sm font-medium ${p.isChecked ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {user?.name}
+                      {user?.name || 'Unknown member'}
                     </span>
                   </div>
                   <div className="font-medium text-gray-900 text-sm">${(p.shareAmount || 0).toFixed(2)}</div>
@@ -552,7 +584,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               disabled={isCustomInvalid || isPercentageInvalid}
               className="bg-teal-600 hover:bg-teal-700 text-white min-w-[120px]"
             >
-              Add Expense
+              {mode === 'edit' ? 'Save changes' : 'Add Expense'}
             </Button>
           </div>
         </div>

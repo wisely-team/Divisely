@@ -293,6 +293,18 @@ Response (200 OK):
       "payerName": "Ali Veli",
       "my_share": 500,
       "is_borrow": true,
+      "shares": [
+        {
+          "userId": "user_123",
+          "displayName": "Ali Veli",
+          "amount": 58.00
+        },
+        {
+          "userId": "user_456",
+          "displayName": "Veli",
+          "amount": 80.00
+        }
+      ],
       "createdAt": "2024-01-15T10:30:00Z",
       "paidTime": "2024-01-15T10:30:00Z"
     }
@@ -300,7 +312,42 @@ Response (200 OK):
 }
 ```
 
-### 3. Delete Expense
+### 3. Get Expense
+```http
+GET /api/get_expense/{expenseId}
+Authorization: Bearer {accessToken}
+
+Response (200 OK):
+{
+  "success": true,
+  "data": {
+    "expenseId": "exp_999",
+    "groupId": "group_55",
+    "description": "Dinner",
+    "amount": 1500.00,
+    "payerId": "user_123",
+    "payerName": "Ali Veli",
+    "my_share": 500,
+    "is_borrow": true,
+    "shares": [
+      {
+        "userId": "user_123",
+        "displayName": "Ali Veli",
+        "amount": 58.00
+      },
+      {
+        "userId": "user_456",
+        "displayName": "Veli",
+        "amount": 80.00
+      }
+    ],
+    "createdAt": "2024-01-15T10:30:00Z",
+    "paidTime": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### 4. Delete Expense
 ```http
 DELETE /api/expenses/{expenseId}
 Authorization: Bearer {accessToken}

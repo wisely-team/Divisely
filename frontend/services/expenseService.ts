@@ -23,6 +23,7 @@ interface AddExpenseResponse {
 }
 
 interface GetExpenseResponse {
+  groupId?: string;
   expenseId: string;
   description: string;
   amount: number;
@@ -30,8 +31,14 @@ interface GetExpenseResponse {
   payerName?: string;
   my_share?: number;
   is_borrow?: boolean;
+  shares?: Array<{ userId: string; displayName?: string; amount: number }>;
+  splits?: Array<{ userId: string; displayName?: string; amount: number }>;
   createdAt?: string;
   paidTime?: string;
+}
+
+interface UpdateExpensePayload extends AddExpensePayload {
+  expenseId: string;
 }
 
 const handleResponse = async <T>(response: Response, defaultError: string): Promise<T> => {
@@ -80,6 +87,17 @@ export const expenseService = {
     return handleResponse<GetExpenseResponse[]>(response, 'fetch_expenses_failed');
   },
 
+  async getExpense(expenseId: string, accessToken: string) {
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/get_expense/${expenseId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    return handleResponse<GetExpenseResponse>(response, 'fetch_expense_failed');
+  },
+
   async deleteExpense(expenseId: string, accessToken: string) {
     const response = await fetchWithTokenRefresh(`${API_BASE_URL}/expenses/${expenseId}`, {
       method: 'DELETE',
@@ -89,5 +107,30 @@ export const expenseService = {
     });
 
     return handleResponse<null>(response, 'delete_expense_failed');
+  },
+
+  async updateExpense(payload: UpdateExpensePayload, accessToken: string) {
+    const paidAt = payload.date ? new Date(payload.date).toISOString() : undefined;
+
+    const response = await fetchWithTokenRefresh(`${API_BASE_URL}/expenses/${payload.expenseId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        groupId: payload.groupId,
+        description: payload.description,
+        amount: payload.amount,
+        payerId: payload.payerId,
+        paidAt,
+        splits: payload.splits.map(split => ({
+          userId: split.userId,
+          amount: split.amount
+        }))
+      })
+    });
+
+    return handleResponse<AddExpenseResponse>(response, 'update_expense_failed');
   }
 };

@@ -97,6 +97,14 @@ function getVerificationEmailHTML(username, verificationCode) {
 
 // Send verification email
 async function sendVerificationEmail(email, username, verificationCode) {
+    // Always surface the code in logs for local/dev without email delivery
+    console.log(`[DEV EMAIL] Verification code for ${email} (${username}): ${verificationCode}`);
+
+    if (!BREVO_API_KEY) {
+        console.warn('[DEV EMAIL] BREVO_API_KEY missing, skipping actual email send.');
+        return true;
+    }
+
     return sendEmailViaBrevo(
         email,
         "Verify your Divisely email address",
@@ -143,6 +151,14 @@ function getPasswordResetEmailHTML(username, resetCode) {
 
 // Send password reset email
 async function sendPasswordResetEmail(email, username, resetCode) {
+    // Always surface the code in logs for local/dev without email delivery
+    console.log(`[DEV EMAIL] Password reset code for ${email} (${username}): ${resetCode}`);
+
+    if (!BREVO_API_KEY) {
+        console.warn('[DEV EMAIL] BREVO_API_KEY missing, skipping actual email send.');
+        return true;
+    }
+
     return sendEmailViaBrevo(
         email,
         "Reset your Divisely password",

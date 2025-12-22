@@ -20,7 +20,7 @@ router.use("/gemini", geminiRoutes);
 router.get("/", (req, res) => {
     res.json({
         message: "API root",
-        availableRoutes: ["/api/auth/register", "/api/users", "/api/groups", "/api/add_expense", "/api/get_expenses/:groupId", "/api/settlements", "/api/settlement/:settlementId"]
+        availableRoutes: ["/api/auth/register", "/api/users", "/api/groups", "/api/add_expense", "/api/get_expenses/:groupId", "/api/get_expense/:expenseId", "/api/settlements", "/api/settlement/:settlementId"]
     });
 });
 

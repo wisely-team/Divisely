@@ -21,6 +21,7 @@ interface AppContextType extends AppState {
   deleteAccount: (password: string) => Promise<void>;
   settleUp: (payload: { groupId: string; fromUserId: string; toUserId: string; amount: number; description?: string; date?: string }) => Promise<Settlement>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense>;
+  editExpense: (expenseId: string, expense: Omit<Expense, 'id'>) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
   loadSettlements: (groupId: string) => Promise<Settlement[]>;
   deleteSettlement: (id: string) => Promise<void>;
@@ -45,6 +46,49 @@ const MOCK_GROUPS: Group[] = [
 
 const MOCK_EXPENSES: Expense[] = [
 ];
+
+const getShareUserId = (share: {
+  userId?: unknown;
+  user_id?: unknown;
+  user?: unknown;
+  debtorId?: unknown;
+  debtor?: unknown;
+}): string | null => {
+  const rawUser = share.userId ?? share.user_id ?? share.user ?? share.debtorId ?? share.debtor;
+  if (!rawUser) return null;
+  if (typeof rawUser === 'string' || typeof rawUser === 'number') return String(rawUser);
+  if (typeof rawUser === 'object') {
+    const candidate = (rawUser as { userId?: unknown; user_id?: unknown; id?: unknown; _id?: unknown }).userId
+      ?? (rawUser as { userId?: unknown; user_id?: unknown; id?: unknown; _id?: unknown }).user_id
+      ?? (rawUser as { userId?: unknown; user_id?: unknown; id?: unknown; _id?: unknown }).id
+      ?? (rawUser as { userId?: unknown; user_id?: unknown; id?: unknown; _id?: unknown })._id;
+    if (candidate) return String(candidate);
+  }
+  return null;
+};
+
+const normalizeExpenseShares = (expense: {
+  shares?: unknown;
+  splits?: unknown;
+  debtors?: unknown;
+}): Split[] => {
+  const shareSource = Array.isArray(expense.shares)
+    ? expense.shares
+    : (Array.isArray(expense.splits)
+      ? expense.splits
+      : (Array.isArray(expense.debtors) ? expense.debtors : []));
+
+  return shareSource
+    .map(share => {
+      const userId = getShareUserId(share as { userId?: unknown; user_id?: unknown; user?: unknown; debtorId?: unknown; debtor?: unknown });
+      if (!userId) return null;
+      const amount = typeof (share as { amount?: unknown }).amount === 'number'
+        ? (share as { amount: number }).amount
+        : Number((share as { amount?: unknown }).amount) || 0;
+      return { userId, amount };
+    })
+    .filter(Boolean) as Split[];
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -120,7 +164,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const normalized = apiExpenses.map((expense, index) => {
             const amount = typeof expense.amount === 'number' ? expense.amount : 0;
             const requesterShare = typeof expense.my_share === 'number' ? Math.max(0, expense.my_share) : 0;
-            const splits: Split[] = requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : [];
+            const shares = normalizeExpenseShares(expense);
+            const splits: Split[] = shares.length > 0
+              ? shares
+              : (requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : []);
+            const myShare = shares.find(s => s.userId === currentUser.id)?.amount ?? requesterShare;
             return {
               id: expense.expenseId || `exp_${Date.now()}_${index}`,
               groupId: g.groupId,
@@ -130,7 +178,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               date: expense.paidTime || expense.createdAt || new Date().toISOString(),
               splits,
               splitType: 'CUSTOM',
-              myShare: requesterShare,
+              myShare,
               isBorrow: expense.is_borrow
             } as Expense;
           });
@@ -420,7 +468,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const normalized = apiExpenses.map((expense, index) => {
         const amount = typeof expense.amount === 'number' ? expense.amount : 0;
         const requesterShare = typeof expense.my_share === 'number' ? Math.max(0, expense.my_share) : 0;
-        const splits: Split[] = requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : [];
+        const shares = normalizeExpenseShares(expense);
+        const splits: Split[] = shares.length > 0
+          ? shares
+          : (requesterShare > 0 ? [{ userId: currentUser.id, amount: requesterShare }] : []);
+        const myShare = shares.find(s => s.userId === currentUser.id)?.amount ?? requesterShare;
 
         return {
           id: expense.expenseId || `exp_${Date.now()}_${index}`,
@@ -432,7 +484,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: expense.createdAt,
           splits,
           splitType: 'CUSTOM',
-          myShare: requesterShare,
+          myShare,
           isBorrow: expense.is_borrow
         } as Expense;
       });
@@ -585,6 +637,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const editExpense = async (expenseId: string, updatedExpenseData: Omit<Expense, 'id'>) => {
+    if (!currentUser) {
+      throw new Error('Please log in to edit an expense.');
+    }
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      throw new Error('Missing access token. Please log in again.');
+    }
+
+    try {
+      const apiExpense = await expenseService.updateExpense(
+        { expenseId, ...updatedExpenseData },
+        accessToken
+      );
+
+      const normalizedExpense: Expense = {
+        id: apiExpense.expenseId || expenseId,
+        groupId: apiExpense.groupId || updatedExpenseData.groupId,
+        payerId: apiExpense.payerId || updatedExpenseData.payerId,
+        description: apiExpense.description || updatedExpenseData.description,
+        amount: typeof apiExpense.amount === 'number' ? apiExpense.amount : updatedExpenseData.amount,
+        date: updatedExpenseData.date || apiExpense.createdAt || new Date().toISOString(),
+        createdAt: apiExpense.createdAt || updatedExpenseData.createdAt || updatedExpenseData.date || new Date().toISOString(),
+        splits: (apiExpense.splits || updatedExpenseData.splits).map(split => ({
+          userId: split.userId,
+          amount: split.amount
+        })),
+        splitType: updatedExpenseData.splitType,
+        myShare: updatedExpenseData.splits.find(s => s.userId === currentUser.id)?.amount ?? 0,
+        isBorrow: (apiExpense.payerId || updatedExpenseData.payerId) !== currentUser.id
+      };
+
+      setExpenses(prev => {
+        const without = prev.filter(e => e.id !== expenseId);
+        return [...without, normalizedExpense];
+      });
+
+      try {
+        const balanceResp = await balanceService.getGroupBalances(updatedExpenseData.groupId, accessToken);
+        const simplified = (balanceResp.simplifiedDebts || []).map(d => ({
+          from: d.from.userId,
+          to: d.to.userId,
+          amount: d.amount
+        }));
+        setGroupBalances(prev => {
+          const others = prev.filter(b => b.groupId !== updatedExpenseData.groupId);
+          return [...others, { groupId: updatedExpenseData.groupId, debts: simplified }];
+        });
+      } catch (error) {
+        console.error('Failed to refresh balances after editing expense', error);
+      }
+
+      return normalizedExpense;
+    } catch (error) {
+      console.error('Failed to edit expense', error);
+      const message = error instanceof Error ? error.message : 'edit_expense_failed';
+      throw new Error(message);
+    }
+  };
+
   const deleteExpense = useCallback(async (id: string) => {
     if (!currentUser) {
       throw new Error('Please log in to delete an expense.');
@@ -716,7 +829,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, removeMemberFromServer, joinGroup, loadGroupExpenses, updateProfile, deleteAccount, settleUp, addExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
+    <AppContext.Provider value={{ currentUser, users, groups, expenses, settlements, login, logout, addGroup, updateGroup, deleteGroup, removeMember, removeMemberFromServer, joinGroup, loadGroupExpenses, updateProfile, deleteAccount, settleUp, addExpense, editExpense, deleteExpense, getGroupBalances, loadSettlements, deleteSettlement, loadGroupBalances }}>
       {children}
     </AppContext.Provider>
   );
