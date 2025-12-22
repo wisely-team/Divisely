@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
 import { Input, Button } from '../components/UIComponents';
 import { authService } from '../services/authService';
+import { useApp } from '../context/AppContext';
 
 type SignUpStep = 'form' | 'verification' | 'success';
 
 export const SignUpPage = () => {
   const navigate = useNavigate();
+  const { login } = useApp();
   const [step, setStep] = useState<SignUpStep>('form');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +46,12 @@ export const SignUpPage = () => {
 
     try {
       await authService.verifyEmail(email, verificationCode);
-      setStep('success');
+      // setStep('success');
+      // Auto-login after successful verification
+      await login(email, password);
+      // Clear password from memory
+      setPassword('');
+      // App.tsx will automatically redirect to redirectAfterLogin or dashboard
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Verification failed. Please try again.';
       if (message === 'invalid_code') setError('Invalid verification code.');

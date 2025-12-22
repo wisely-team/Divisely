@@ -46,8 +46,10 @@ export const JoinGroupPage: React.FC = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) {
         // Not authenticated - store redirect and go to login
+        console.log('[JoinGroup] Not authenticated, setting redirect:', `/join/${groupId}`);
         localStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
-        navigate('/login');
+        // Small delay to ensure localStorage is written
+        setTimeout(() => navigate('/login'), 10);
         return;
       }
 
@@ -55,13 +57,15 @@ export const JoinGroupPage: React.FC = () => {
       // If we already have a token, use localStorage as a fallback instead of bouncing to /login.
       const effectiveUser = currentUser || getStoredUser();
       if (!effectiveUser) {
+        console.log('[JoinGroup] Token exists but no user, setting redirect:', `/join/${groupId}`);
         localStorage.setItem('redirectAfterLogin', `/join/${groupId}`);
-        navigate('/login');
+        setTimeout(() => navigate('/login'), 10);
         return;
       }
 
       hasCheckedRef.current = true;
       // Clear the redirect storage since we've arrived at the destination
+      console.log('[JoinGroup] Arrived at destination, clearing redirect');
       localStorage.removeItem('redirectAfterLogin');
       // Set default displayName from user data
       setDisplayName(effectiveUser.username || effectiveUser.name || '');

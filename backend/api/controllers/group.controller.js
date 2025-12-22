@@ -165,12 +165,36 @@ async function getGroupDetails(req, res) {
             return res.status(403).json({ success: false, error: "You are not authorized to view this group" });
         }
 
-        const responseMembers = (group.members || []).map(member => ({
-            userId: (member.user?._id || member.user)?.toString(),
-            username: member.user?.username,
-            displayName: member.displayName,
-            email: member.user?.email
-        }));
+        // Self-healing: Remove members whose user account was deleted
+        const initialMemberCount = group.members.length;
+        const activeMembers = group.members.filter(m => m.user);
+
+        if (activeMembers.length < initialMemberCount) {
+            console.log(`[SELF-HEALING] Removing ${initialMemberCount - activeMembers.length} deleted users from group ${groupId}`);
+            const activeUserIds = activeMembers.map(m => m.user._id.toString());
+
+            await Group.findByIdAndUpdate(groupId, {
+                $set: {
+                    members: activeMembers.map(m => ({
+                        user: m.user._id,
+                        displayName: m.displayName
+                    })),
+                    memberBalances: group.memberBalances.filter(mb => activeUserIds.includes(mb.userId.toString()))
+                }
+            });
+            // Update the local group object to reflect changes
+            group.members = activeMembers;
+            group.memberBalances = group.memberBalances.filter(mb => activeUserIds.includes(mb.userId.toString()));
+        }
+
+        const responseMembers = (group.members || [])
+            .filter(member => member.user) // Filter out members whose user account was deleted
+            .map(member => ({
+                userId: (member.user?._id || member.user)?.toString(),
+                username: member.user?.username,
+                displayName: member.displayName,
+                email: member.user?.email
+            }));
         const responseMemberBalances = (group.memberBalances || []).map(mb => ({
             userId: mb.userId?.toString(),
             balance: mb.balance
@@ -215,6 +239,28 @@ async function getGroupBalances(req, res) {
             return res.status(404).json({ success: false, error: "group_not_found" });
         }
 
+        // Self-healing: Remove members whose user account was deleted
+        const initialMemberCount = group.members.length;
+        const activeMembers = group.members.filter(m => m.user);
+
+        if (activeMembers.length < initialMemberCount) {
+            console.log(`[SELF-HEALING] Removing ${initialMemberCount - activeMembers.length} deleted users from group ${groupId}`);
+            const activeUserIds = activeMembers.map(m => m.user._id.toString());
+
+            await Group.findByIdAndUpdate(groupId, {
+                $set: {
+                    members: activeMembers.map(m => ({
+                        user: m.user._id,
+                        displayName: m.displayName
+                    })),
+                    memberBalances: group.memberBalances.filter(mb => activeUserIds.includes(mb.userId.toString()))
+                }
+            });
+            // Update the local group object to reflect changes
+            group.members = activeMembers;
+            group.memberBalances = group.memberBalances.filter(mb => activeUserIds.includes(mb.userId.toString()));
+        }
+
         // Extract member user IDs from embedded structure
         const memberIds = Array.isArray(group.members)
             ? group.members.map(m => (m.user?._id || m.user)?.toString())
@@ -254,11 +300,17 @@ async function getGroupBalances(req, res) {
 
         const sortDesc = (a, b) => {
             if (b.amount !== a.amount) return b.amount - a.amount;
-            return a.userId.localeCompare(b.userId);
+            if (!a.userId && !b.userId) return 0;
+            if (!a.userId) return 1;
+            if (!b.userId) return -1;
+            return String(a.userId).localeCompare(String(b.userId));
         };
         const sortAsc = (a, b) => {
             if (a.amount !== b.amount) return a.amount - b.amount;
-            return a.userId.localeCompare(b.userId);
+            if (!a.userId && !b.userId) return 0;
+            if (!a.userId) return 1;
+            if (!b.userId) return -1;
+            return String(a.userId).localeCompare(String(b.userId));
         };
 
         creditors.sort(sortDesc);

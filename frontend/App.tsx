@@ -20,23 +20,32 @@ const GroupsRedirect = () => {
 
 const AppContent = () => {
   const { currentUser } = useApp();
+  const [redirectPath, setRedirectPath] = React.useState<string | null>(null);
 
-  // Helper to get redirect path for logged in users
-  // Note: We don't remove redirectAfterLogin here because LoginPage handles that
-  // after successful navigation. This prevents race conditions.
-  const getRedirectPath = () => {
-    const redirectAfterLogin = localStorage.getItem('redirectAfterLogin');
-    if (redirectAfterLogin) {
-      return redirectAfterLogin;
+  // When user logs in, capture and clear the redirectAfterLogin value once
+  React.useEffect(() => {
+    if (currentUser) {
+      const storedRedirect = localStorage.getItem('redirectAfterLogin');
+      if (storedRedirect) {
+        localStorage.removeItem('redirectAfterLogin');
+        setRedirectPath(storedRedirect);
+      } else if (redirectPath === null) {
+        setRedirectPath('/dashboard');
+      }
+    } else {
+      // Reset when logged out
+      setRedirectPath(null);
     }
-    return '/dashboard';
-  };
+  }, [currentUser]);
+
+  // Get the redirect path (cached value or default)
+  const getRedirectPath = () => redirectPath || '/dashboard';
 
   return (
     <Routes>
       <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to={getRedirectPath()} />} />
       <Route path="/signup" element={!currentUser ? <SignUpPage /> : <Navigate to={getRedirectPath()} />} />
-      <Route path="/forgot-password" element={!currentUser ? <ForgotPasswordPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/forgot-password" element={!currentUser ? <ForgotPasswordPage /> : <Navigate to={getRedirectPath()} />} />
       <Route path="/join/:groupId" element={<JoinGroupPage />} />
       <Route
         path="/dashboard"

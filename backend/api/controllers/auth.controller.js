@@ -218,9 +218,8 @@ async function forgotPassword(req, res) {
         const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
-            console.log('[FORGOT PASSWORD] User not found (returning success to prevent enumeration)');
-            // Return success even if user not found to prevent email enumeration
-            return res.status(200).json({ success: true, data: { message: "If an account exists, reset instructions have been sent." } });
+            console.log('[FORGOT PASSWORD] User not found');
+            return res.status(404).json({ success: false, error: "email_not_found" });
         }
 
         console.log(`[FORGOT PASSWORD] User found: ${user.username} (${user._id})`);

@@ -19,20 +19,15 @@ export const LoginPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
+  React.useEffect(() => {
+    const redirectPath = localStorage.getItem('redirectAfterLogin');
+    console.log('[LoginPage] Mounted. redirectAfterLogin:', redirectPath);
+  }, []);
+
   const handleLoginSubmit = async (email: string, password: string) => {
     try {
       await login(email, password);
-      // Use setTimeout to ensure React state is fully updated before navigating
-      // This prevents the route guards from interfering with the redirect
-      setTimeout(() => {
-        const redirectPath = localStorage.getItem('redirectAfterLogin');
-        if (redirectPath) {
-          localStorage.removeItem('redirectAfterLogin');
-          navigate(redirectPath, { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }, 10);
+      // No manual navigation needed. App.tsx handles redirection when currentUser changes.
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       if (message === 'email_not_verified') {
@@ -60,17 +55,7 @@ export const LoginPage = () => {
       setStep('form');
       setPendingEmail('');
       setPendingPassword('');
-      setVerificationCode('');
-      // Redirect with setTimeout to ensure state is updated
-      setTimeout(() => {
-        const redirectPath = localStorage.getItem('redirectAfterLogin');
-        if (redirectPath) {
-          localStorage.removeItem('redirectAfterLogin');
-          navigate(redirectPath, { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }, 10);
+      // No manual navigation needed. App.tsx handles redirection when currentUser changes.
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Verification failed. Please try again.';
       if (message === 'invalid_code') setError('Invalid verification code.');

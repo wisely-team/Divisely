@@ -109,9 +109,6 @@ async function deleteMe(req, res) {
     const userId = req.user?.userId;
     const { password } = req.body || {};
 
-    console.log('[DELETE ME] Request body:', req.body);
-    console.log('[DELETE ME] Password received:', password ? 'yes (length: ' + password.length + ')' : 'no');
-
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, error: "unauthorized" });
     }
@@ -135,11 +132,42 @@ async function deleteMe(req, res) {
     // Delete the user
     await User.findByIdAndDelete(userId);
 
-    console.log(`[USER DELETED] User ${user.email} (${userId}) has been deleted.`);
+    // Cascade cleanup: Remove user from all groups
+    // 1. Find all groups where the user is a member // Kullanıcıyı gruplardan kaldırma.
+    const Group = require("../models/group.model");
+    const Expense = require("../models/expense.model");
+    const Settlement = require("../models/settlement.model");
+
+    const userGroups = await Group.find({ "members.user": userId });
+
+    for (const group of userGroups) {
+      // Remove from members array
+      group.members = group.members.filter(m => m.user.toString() !== userId);
+
+      // Remove from memberBalances array
+      group.memberBalances = group.memberBalances.filter(mb => mb.userId.toString() !== userId);
+
+      // If the user was the owner, transfer ownership to the first remaining member or delete group if empty
+      if (group.owner.toString() === userId) {
+        if (group.members.length > 0) {
+          group.owner = group.members[0].user;
+        } else {
+          // If no members left, delete the group and its related data
+          await Group.findByIdAndDelete(group._id);
+          await Expense.deleteMany({ group: group._id });
+          await Settlement.deleteMany({ group: group._id });
+          continue; // Move to next group
+        }
+      }
+
+      await group.save();
+    }
+
+    console.log(`[USER DELETED] User ${user.email} (${userId}) has been deleted and removed from ${userGroups.length} groups.`);
 
     return res.status(200).json({
       success: true,
-      data: { message: "Account deleted successfully" }
+      data: { message: "Account deleted successfully and removed from all groups" }
     });
   } catch (error) {
     console.error("Delete me error:", error);
