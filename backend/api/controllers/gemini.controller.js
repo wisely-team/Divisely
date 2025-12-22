@@ -29,7 +29,7 @@ async function analyzeFinances(req, res) {
             });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             You are an intelligent financial assistant for a group expense sharing app called "Divisely".
@@ -84,7 +84,7 @@ async function analyzeReceipt(req, res) {
             });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             You are an OCR and receipt analysis assistant. Analyze this receipt image and extract:

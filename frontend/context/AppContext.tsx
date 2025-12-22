@@ -250,6 +250,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateGroup = async (groupId: string, data: Partial<Group>) => {
     if (!data) return;
 
+    // Check if we're updating API-managed fields (name/description)
+    const hasApiFields = data.name !== undefined || data.description !== undefined;
+
+    // If only syncing local fields (members, ownerId), just update state
+    if (!hasApiFields) {
+      setGroups(prev => prev.map(g => (g.id === groupId ? { ...g, ...data } : g)));
+      return;
+    }
+
     const accessToken = localStorage.getItem('accessToken');
     if (!accessToken) {
       console.warn('Missing access token. Skipping group update.');
