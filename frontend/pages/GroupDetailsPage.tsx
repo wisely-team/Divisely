@@ -105,9 +105,8 @@ export const GroupDetailsPage = () => {
         }));
         setGroupMembers(normalizedMembers);
         setOwnerId(details.createdBy || ownerId);
+        // Only sync members and ownerId locally - don't trigger API call with name/description
         updateGroup(details.groupId, {
-          name: details.name,
-          description: details.description,
           members: normalizedMembers.map(m => m.id),
           ownerId: details.createdBy || ownerId
         });

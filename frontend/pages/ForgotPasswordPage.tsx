@@ -3,11 +3,13 @@ import { Wallet, Mail, Key, Lock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { Button, Input } from '../components/UIComponents';
+import { useApp } from '../context/AppContext';
 
 type Step = 'email' | 'code' | 'newPassword' | 'success';
 
 export const ForgotPasswordPage: React.FC = () => {
     const navigate = useNavigate();
+    const { login } = useApp();
     const [step, setStep] = useState<Step>('email');
     const [email, setEmail] = useState('');
     const [code, setCode] = useState('');
@@ -26,7 +28,11 @@ export const ForgotPasswordPage: React.FC = () => {
             setStep('code');
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unable to process request.';
-            setError(message);
+            if (message === 'email_not_found') {
+                setError('No account found with this email address. Please check the email or sign up for a new account.');
+            } else {
+                setError(message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -62,7 +68,12 @@ export const ForgotPasswordPage: React.FC = () => {
 
         try {
             await authService.resetPassword(email, code, newPassword);
-            setStep('success');
+            // Auto-login after successful password reset
+            await login(email, newPassword);
+            // Clear password from memory
+            setNewPassword('');
+            setConfirmPassword('');
+            // App.tsx will automatically redirect to redirectAfterLogin or dashboard
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unable to reset password.';
             if (message === 'invalid_code') {
