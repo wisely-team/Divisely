@@ -565,7 +565,7 @@ export const GroupDetailsPage = () => {
         onSettleUp={handleSettleUp}
       />
 
-      <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} group={group} expenses={groupExpenses} users={users} />
+      <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} group={group} expenses={groupExpenses} settlements={groupSettlements} users={groupUsers} />
     </>
   );
-};
+}; 
